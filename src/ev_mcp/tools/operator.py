@@ -11,7 +11,11 @@ DEFAULT_LIMIT = 50
 MAX_LIMIT = 100  # token-budget guard
 
 COLD_PATH_PAGE_SIZE = 2000  # ChargerInfo 한 행 ≈ 1KB → 2MB 한 페이지 (게이트웨이 안전)
-COLD_PATH_MAX_PAGES = 10  # 최대 20k 행 — 한국 전체 충전기 ~12-20k 커버
+# 한국 전체 충전기 ~50만 (data.go.kr totalCount 측정 2026-05-06). 콜드패스는
+# limit 채울 때까지만 진행하므로 큰 운영기관(ME, KP) 은 1~2 페이지, 중소 운영기관
+# (CV, EV 등) 은 5~20 페이지 안에 limit 채움. 매우 작은 운영기관은 30 페이지로도
+# 부족할 수 있으나, 그쯤 되면 워밍이 끝나 캐시 핫패스로 옮겨가야 정답.
+COLD_PATH_MAX_PAGES = 30  # 최대 60k 행 스캔 (총 ~50만의 12%)
 
 
 async def list_chargers_by_operator(

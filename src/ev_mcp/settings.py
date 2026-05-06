@@ -30,7 +30,10 @@ class Settings(BaseSettings):
     # data.go.kr supports HTTPS — never default to http (serviceKey would be in
     # the cleartext query string).
     api_base_url: str = "https://apis.data.go.kr/B552584/EvCharger"
-    request_timeout_s: float = 15.0
+    # data.go.kr 의 getChargerInfo 가 numOfRows 와 무관하게 응답 자체가 느림 —
+    # 측정 결과 urllib 20s, httpx 50~60s. 15s 는 모든 attempt 가 timeout 으로
+    # 끝나는 원인. 90s 로 잡고 retry 3번이면 워밍 한 페이지가 최악 4~5분.
+    request_timeout_s: float = 90.0
     max_retries: int = 3
 
     @property
