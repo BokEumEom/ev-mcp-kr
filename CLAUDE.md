@@ -23,7 +23,9 @@ python -m mypy src/
 - **Phase 2 (완료):** 캐시(24h/60s) + 지오코더 + 7개 MCP 툴 + 도메인 모델, 테스트 68건. → `docs/PHASE2.md`
 - **Phase 3 (완료):** FastMCP 서버 + Streamable HTTP + /health + CORS + 백그라운드 캐시 워밍, 테스트 78건. → `docs/PHASE3.md`
 - **Phase 4 (완료):** Dockerfile + Render Blueprint + GitHub Actions CI + 통합 로깅 + URL-encoded 키 마스킹 + HTTPS 강제, 테스트 84건. → `docs/PHASE4.md`
-- **Phase 5 (예정):** Claude 디렉터리 제출 패키지.
+- **Phase 5 (완료):** PRIVACY/SUPPORT 문서, README 등록 가이드 + 사용 예시 3개, MCP 인스펙터 스모크. → `docs/PHASE5.md`
+- **Phase 6 (완료):** SQLite 영속 store + sync 스크립트 분리. in-memory 24h 캐시 → `data/chargers.db`. 테스트 102건. → `docs/PHASE6.md`
+- **Phase 7 (예정):** Render 배포 영속 디스크 + sync 스케줄.
 
 전체 계획서: `docs/PLAN.md`
 

@@ -2,27 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-import httpx
 import pytest
-import respx
 
 from ev_mcp.context import ToolContext
 from ev_mcp.models import ChargerInfo
-from ev_mcp.tools.operator import COLD_PATH_PAGE_SIZE, list_chargers_by_operator
-
-from .fixtures.sample_responses import GET_CHARGER_INFO_OK
+from ev_mcp.tools.operator import list_chargers_by_operator
 
 
-def _seed(ctx: ToolContext) -> None:
-    rows = [
-        ChargerInfo.model_validate(it)
-        for it in GET_CHARGER_INFO_OK["response"]["body"]["items"]["item"]
-    ]
-    ctx.caches.station_info.seed_for_testing(rows)
-
-
-def _row(*, stat_id: str, busi_id: str, busi_nm: str, zcode: str = "11") -> dict[str, Any]:
-    return {
+def _row(*, stat_id: str, busi_id: str, busi_nm: str, zcode: str = "11") -> ChargerInfo:
+    payload: dict[str, Any] = {
         "statNm": f"station-{stat_id}",
         "statId": stat_id,
         "chgerId": "01",
@@ -37,7 +25,7 @@ def _row(*, stat_id: str, busi_id: str, busi_nm: str, zcode: str = "11") -> dict
         "busiNm": busi_nm,
         "busiCall": "",
         "stat": "2",
-        "statUpdDt": "20260430000000",
+        "statUpdDt": "",
         "lastTsdt": "",
         "lastTedt": "",
         "nowTsdt": "",
@@ -58,99 +46,67 @@ def _row(*, stat_id: str, busi_id: str, busi_nm: str, zcode: str = "11") -> dict
         "floorNum": "",
         "floorType": "",
     }
-
-
-def _full_page_response(rows: list[dict[str, Any]], *, page_no: int, total_count: int) -> dict:
-    return {
-        "response": {
-            "header": {
-                "resultCode": "00",
-                "resultMsg": "NORMAL SERVICE.",
-                "totalCount": total_count,
-                "pageNo": page_no,
-                "numOfRows": COLD_PATH_PAGE_SIZE,
-            },
-            "body": {"items": {"item": rows}},
-        }
-    }
+    return ChargerInfo.model_validate(payload)
 
 
 @pytest.mark.asyncio
 async def test_list_by_operator_korean_name(ctx: ToolContext) -> None:
-    _seed(ctx)
-    async with respx.mock(base_url=ctx.settings.api_base_url, assert_all_called=False):
-        results = await list_chargers_by_operator(operator="기후에너지환경부", ctx=ctx)
+    ctx.store.seed_for_testing([
+        _row(stat_id="ME0001", busi_id="ME", busi_nm="기후에너지환경부"),
+        _row(stat_id="EV0001", busi_id="EV", busi_nm="에버온"),
+    ])
+    results = await list_chargers_by_operator(operator="기후에너지환경부", ctx=ctx)
     assert all(r.busi_id == "ME" for r in results)
     assert len(results) == 1
 
 
 @pytest.mark.asyncio
 async def test_list_by_operator_with_region(ctx: ToolContext) -> None:
-    _seed(ctx)
-    async with respx.mock(base_url=ctx.settings.api_base_url, assert_all_called=False):
-        results = await list_chargers_by_operator(
-            operator="에버온", region="서울특별시", ctx=ctx
-        )
-    assert all(r.busi_id == "EV" and r.sido_code == "11" for r in results)
+    ctx.store.seed_for_testing([
+        _row(stat_id="EV0001", busi_id="EV", busi_nm="에버온", zcode="11"),
+        _row(stat_id="EV0002", busi_id="EV", busi_nm="에버온", zcode="26"),
+    ])
+    results = await list_chargers_by_operator(
+        operator="에버온", region="서울특별시", ctx=ctx
+    )
+    assert len(results) == 1
+    assert results[0].sido_code == "11"
 
 
 @pytest.mark.asyncio
-async def test_cold_path_paginates_until_minor_operator_found(ctx: ToolContext) -> None:
-    """Regression: cache cold (warming failed) + minor operator (CV/EV/...) used
-    to return 0 rows because cold-path fetched only page 1 (ME-dominant) and
-    filtered client-side. Fix: paginate until limit met or totalCount reached.
+async def test_list_by_operator_minor_operator_returns_results(ctx: ToolContext) -> None:
+    """Regression: Phase 6 store-backed lookup MUST surface non-ME operators.
 
-    Simulates: page 1 = full ME page (no EV), page 2 = EV rows. Asserts both
-    pages are fetched and EV results returned.
+    The Phase 1~5 in-memory cold-path bug returned 0 rows for operators like
+    CV/EV when the cache was cold. With the store, this becomes a hash-indexed
+    lookup that always works regardless of warming state.
     """
-    page1_me = [_row(stat_id=f"ME{i:06d}", busi_id="ME", busi_nm="기후에너지환경부")
-                for i in range(COLD_PATH_PAGE_SIZE)]
-    page2_ev = [_row(stat_id=f"EV{i:06d}", busi_id="EV", busi_nm="에버온")
-                for i in range(3)]
-    total = COLD_PATH_PAGE_SIZE + len(page2_ev)
-
-    async with respx.mock(base_url=ctx.settings.api_base_url) as router:
-        route = router.get("/getChargerInfo")
-        route.side_effect = [
-            httpx.Response(200, json=_full_page_response(page1_me, page_no=1, total_count=total)),
-            httpx.Response(200, json={
-                "response": {
-                    "header": {
-                        "resultCode": "00",
-                        "resultMsg": "NORMAL SERVICE.",
-                        "totalCount": total,
-                        "pageNo": 2,
-                        "numOfRows": COLD_PATH_PAGE_SIZE,
-                    },
-                    "body": {"items": {"item": page2_ev}},
-                }
-            }),
-        ]
-
-        assert ctx.caches.station_info.is_fresh() is False
-        results = await list_chargers_by_operator(operator="에버온", ctx=ctx)
-
-    assert route.call_count == 2, f"expected 2 page fetches, got {route.call_count}"
-    assert len(results) == len(page2_ev), f"expected {len(page2_ev)} EV rows, got {len(results)}"
-    assert all(r.busi_id == "EV" for r in results)
+    ctx.store.seed_for_testing([
+        _row(stat_id=f"ME{i:06d}", busi_id="ME", busi_nm="기후에너지환경부")
+        for i in range(100)
+    ] + [
+        _row(stat_id=f"CV{i:06d}", busi_id="CV", busi_nm="채비") for i in range(5)
+    ])
+    results = await list_chargers_by_operator(operator="채비", ctx=ctx)
+    assert len(results) == 5
+    assert all(r.busi_id == "CV" for r in results)
 
 
 @pytest.mark.asyncio
-async def test_cold_path_stops_when_limit_satisfied(ctx: ToolContext) -> None:
-    """ME 가 페이지 1 에 충분히 많으면 페이지 2 안 뽑음 (불필요한 호출 회피)."""
-    page1_me = [_row(stat_id=f"ME{i:06d}", busi_id="ME", busi_nm="기후에너지환경부")
-                for i in range(COLD_PATH_PAGE_SIZE)]
-
-    async with respx.mock(base_url=ctx.settings.api_base_url) as router:
-        route = router.get("/getChargerInfo").respond(
-            json=_full_page_response(page1_me, page_no=1, total_count=COLD_PATH_PAGE_SIZE * 5),
-        )
-        assert ctx.caches.station_info.is_fresh() is False
-        results = await list_chargers_by_operator(operator="ME", limit=10, ctx=ctx)
-
-    assert route.call_count == 1, f"limit=10 should stop after page 1 (got {route.call_count})"
+async def test_list_by_operator_respects_limit(ctx: ToolContext) -> None:
+    ctx.store.seed_for_testing([
+        _row(stat_id=f"ME{i:06d}", busi_id="ME", busi_nm="기후에너지환경부")
+        for i in range(50)
+    ])
+    results = await list_chargers_by_operator(operator="ME", limit=10, ctx=ctx)
     assert len(results) == 10
-    assert all(r.busi_id == "ME" for r in results)
+
+
+@pytest.mark.asyncio
+async def test_list_by_operator_empty_store(ctx: ToolContext) -> None:
+    """Empty store → empty result, no exception."""
+    results = await list_chargers_by_operator(operator="ME", ctx=ctx)
+    assert results == []
 
 
 @pytest.mark.asyncio

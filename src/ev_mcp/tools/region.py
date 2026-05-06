@@ -8,10 +8,10 @@ from ..domain import ChargerSummary
 from ..models import ChargerInfo, ChargerStatusCode
 
 DEFAULT_LIMIT = 50
-MAX_LIMIT = 100  # token-budget guard: ChargerSummary ≈ 500B, 100 rows ≈ 50KB
+MAX_LIMIT = 100  # token-budget guard
 
 
-async def search_chargers_by_region(  # noqa: PLR0912
+async def search_chargers_by_region(
     *,
     sido: str,
     sigungu: str | None = None,
@@ -22,8 +22,9 @@ async def search_chargers_by_region(  # noqa: PLR0912
 ) -> list[ChargerSummary]:
     """시도(/시군구) 단위로 충전기를 찾습니다.
 
-    캐시(24h)가 있으면 메모리에서 필터링; 없으면 upstream getChargerInfo 를
-    zcode/zscode 필터로 직접 호출합니다.
+    영속 SQLite 인벤토리의 idx_zcode/idx_zscode 룩업. 추가 필터 (충전기 타입,
+    available_only) 는 결과 셋에서 후처리. fetch 는 limit 의 4 배까지 받고 거른 뒤
+    limit 만큼 반환.
 
     Parameters
     ----------
@@ -62,18 +63,13 @@ async def search_chargers_by_region(  # noqa: PLR0912
         if zscode is None:
             raise ValueError(f"unknown sigungu: {sigungu!r}")
 
+    # over-fetch so post-filtering still leaves room for `limit` results
+    fetch_limit = min(max(limit * 4, 100), 1000)
     rows: list[ChargerInfo]
-    if ctx.caches.station_info.is_fresh():
-        if zscode:
-            rows = ctx.caches.station_info.by_zscode.get(zscode, [])
-        else:
-            rows = ctx.caches.station_info.by_zcode.get(zcode, [])
+    if zscode:
+        rows = ctx.store.by_zscode(zscode, limit=fetch_limit)
     else:
-        _, rows = await ctx.client.get_charger_info(
-            zcode=zcode,
-            zscode=zscode,
-            num_of_rows=min(max(limit * 4, 100), 1000),
-        )
+        rows = ctx.store.by_zcode(zcode, limit=fetch_limit)
 
     type_set = set(charger_type) if charger_type else None
     out: list[ChargerSummary] = []

@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging as stdlogging
 
 import httpx
 import pytest
-import respx
 from httpx import ASGITransport
 
 from ev_mcp import server
@@ -18,8 +16,6 @@ from ev_mcp.server import (
     build_server,
 )
 from ev_mcp.settings import Settings
-
-from .fixtures.sample_responses import GET_CHARGER_INFO_OK
 
 
 @pytest.mark.asyncio
@@ -85,7 +81,7 @@ async def test_lookup_codes_tool_callable(settings: Settings) -> None:
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_reports_cache_state(settings: Settings) -> None:
+async def test_health_endpoint_reports_store_state(settings: Settings) -> None:
     mcp, ctx = build_server(settings)
     app = _build_starlette_app(mcp, ctx)
 
@@ -95,8 +91,8 @@ async def test_health_endpoint_reports_cache_state(settings: Settings) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["ok"] is True
-    assert body["station_info"]["fresh"] is False
-    assert body["station_info"]["rows"] == 0
+    assert body["store"]["rows"] == 0
+    assert body["store"]["last_synced_at"] is None
 
 
 @pytest.mark.asyncio
@@ -114,56 +110,6 @@ async def test_cors_preflight_allows_claude_origin(settings: Settings) -> None:
         )
     assert resp.status_code in (200, 204)
     assert resp.headers.get("access-control-allow-origin") == "https://claude.ai"
-
-
-# Lifespan tests — ASGITransport doesn't auto-trigger lifespan, so we drive it directly.
-# The warm task runs in the background; lifespan returns immediately so /health
-# can answer 200 right away (Render healthcheck friendly).
-
-
-@pytest.mark.asyncio
-async def test_lifespan_warms_cache_in_background(settings: Settings) -> None:
-    mcp, ctx = build_server(settings)
-    app = _build_starlette_app(mcp, ctx)
-
-    async with respx.mock(base_url=settings.api_base_url) as router:
-        route = router.get("/getChargerInfo").respond(json=GET_CHARGER_INFO_OK)
-        async with app.router.lifespan_context(app):
-            # Yield control so the background warm task can finish.
-            for _ in range(50):
-                if ctx.caches.station_info.is_fresh():
-                    break
-                await asyncio.sleep(0.01)
-        assert route.call_count >= 1
-    assert ctx.caches.station_info.is_fresh()
-    assert len(ctx.caches.station_info.all_rows) == 2
-
-
-@pytest.mark.asyncio
-async def test_lifespan_survives_upstream_failure(
-    settings: Settings,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """If the warm-cache job fails, the server must still come up cold."""
-
-    async def _fast_sleep(_: float) -> None:
-        return None
-
-    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
-
-    mcp, ctx = build_server(settings)
-    app = _build_starlette_app(mcp, ctx)
-
-    async with respx.mock(
-        base_url=settings.api_base_url, assert_all_called=False
-    ) as router:
-        router.get("/getChargerInfo").respond(status_code=503)
-        async with app.router.lifespan_context(app):
-            # Give the warm task a chance to fire before lifespan exits.
-            await asyncio.sleep(0.05)
-    # Cache stayed cold but lifespan didn't crash, client was closed cleanly.
-    assert ctx.caches.station_info.is_fresh() is False
-    assert ctx.caches.station_info.all_rows == []
 
 
 @pytest.mark.asyncio
@@ -222,34 +168,3 @@ async def test_mcp_lifespan_initializes_session_manager(settings: Settings) -> N
     # The critical thing is that we are NOT getting 500 from the task-group bug.
     assert resp.status_code != 500
     assert resp.status_code < 500
-
-
-@pytest.mark.asyncio
-async def test_lifespan_redacts_service_key_in_warm_failure_log(
-    settings: Settings, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Warm-task failure log must NOT contain SERVICE_KEY."""
-
-    async def _fast_sleep(_: float) -> None:
-        return None
-
-    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
-
-    mcp, ctx = build_server(settings)
-    app = _build_starlette_app(mcp, ctx)
-
-    caplog.set_level(stdlogging.WARNING)
-    async with respx.mock(
-        base_url=settings.api_base_url, assert_all_called=False
-    ) as router:
-        # Echo our SERVICE_KEY in a 503 body — the worst-case leak shape.
-        router.get("/getChargerInfo").respond(
-            status_code=503, text="leaked TEST_KEY_NOT_REAL in body"
-        )
-        async with app.router.lifespan_context(app):
-            # Allow the warm task to attempt and fail before lifespan exits.
-            await asyncio.sleep(0.1)
-    full = "".join(rec.getMessage() for rec in caplog.records) + "\n".join(
-        str(rec.exc_text or "") for rec in caplog.records
-    )
-    assert "TEST_KEY_NOT_REAL" not in full

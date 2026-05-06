@@ -17,7 +17,7 @@ async def test_get_station_details_uses_cache_when_fresh(ctx: ToolContext) -> No
         ChargerInfo.model_validate(it)
         for it in GET_CHARGER_INFO_OK["response"]["body"]["items"]["item"]
     ]
-    ctx.caches.station_info.seed_for_testing(rows)
+    ctx.store.seed_for_testing(rows)
 
     async with respx.mock(
         base_url=ctx.settings.api_base_url, assert_all_called=False

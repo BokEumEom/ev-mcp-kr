@@ -19,6 +19,12 @@ coverage.xml
 
 logs/*.log
 
+# Phase 6: SQLite charger inventory — populated by scripts/sync_chargers.py
+# (~100MB compressed; do not commit)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
 .DS_Store
 .idea/
 .vscode/

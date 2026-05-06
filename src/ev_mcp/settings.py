@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,6 +18,10 @@ class Settings(BaseSettings):
 
     service_key: SecretStr = Field(..., description="data.go.kr issued service key")
     vworld_key: SecretStr | None = Field(default=None, description="Optional VWorld geocoder key")
+    db_path: Path = Field(
+        default=Path("data/chargers.db"),
+        description="SQLite charger inventory store; populated by scripts/sync_chargers.py",
+    )
 
     # Default to loopback. Containers / Render set HOST=0.0.0.0 explicitly.
     host: str = "127.0.0.1"

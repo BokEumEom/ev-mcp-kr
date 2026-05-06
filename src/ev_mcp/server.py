@@ -10,7 +10,6 @@ Streamable HTTP transport is mounted at ``/mcp`` (FastMCP default).
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import json
 import logging
@@ -29,7 +28,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
-from .cache import Caches, build_caches
+from .cache import build_caches
 from .client import EvChargerClient
 from .codes_lookup import (
     busi_id_table,
@@ -43,6 +42,7 @@ from .codes_lookup import (
 from .context import ToolContext
 from .domain import ChargerNearby, ChargerSummary, StationDetails, StatusChange
 from .settings import Settings, load_settings
+from .store import open_store
 from .tools.codes import CodeCategory
 from .tools.codes import lookup_codes as _lookup_codes
 from .tools.nearby import find_chargers_nearby as _find_nearby
@@ -199,7 +199,8 @@ def build_server(settings: Settings | None = None) -> tuple[FastMCP, ToolContext
     configure_logging(s.log_level, settings=s)
     client = EvChargerClient(s)
     caches = build_caches(s)
-    ctx = ToolContext(settings=s, client=client, caches=caches)
+    store = open_store(s.db_path)
+    ctx = ToolContext(settings=s, client=client, store=store, caches=caches)
 
     mcp = FastMCP(
         name="ev-mcp",
@@ -355,13 +356,14 @@ def _register_resources(mcp: FastMCP) -> None:
 
 def _build_health_route(ctx: ToolContext) -> Route:
     async def health(_request: Request) -> JSONResponse:
-        cache = ctx.caches.station_info
+        last = ctx.store.last_synced_at()
         body = {
             "ok": True,
             "version": "0.1.0",
-            "station_info": {
-                "rows": len(cache.all_rows),
-                "fresh": cache.is_fresh(),
+            "store": {
+                "rows": ctx.store.total_count(),
+                "last_synced_at": last.isoformat() if last else None,
+                "last_completed_page": ctx.store.last_completed_page(),
             },
         }
         return JSONResponse(body)
@@ -372,18 +374,10 @@ def _build_health_route(ctx: ToolContext) -> Route:
 def _build_starlette_app(mcp: FastMCP, ctx: ToolContext) -> Starlette:
     """Wrap the FastMCP HTTP app with /health and CORS.
 
-    Cache warm runs as a background task — `/health` becomes 200 immediately so
-    Render/Cloud healthchecks don't time out on cold start. The first user
-    request hits the cold-cache fallback path until the warm task finishes.
+    Phase 6: the server is now read-only over the SQLite store. No background
+    warming task — populating the store is the sync script's job
+    (``scripts/sync_chargers.py``). ``/health`` reflects current row count.
     """
-
-    async def _warm(client: EvChargerClient, caches: Caches) -> None:
-        try:
-            await caches.station_info.ensure_fresh(client)
-            logger.info("cache_warmed", rows=len(caches.station_info.all_rows))
-        except Exception as e:
-            # Do NOT use logger.exception: traceback frames may contain SERVICE_KEY.
-            logger.warning("cache_warm_failed", error=client.redact(e))
 
     mcp_app = mcp.http_app(transport="streamable-http")
 
@@ -393,14 +387,11 @@ def _build_starlette_app(mcp: FastMCP, ctx: ToolContext) -> Starlette:
         # mcp_app.lifespan(). We MUST enter it or every /mcp request will 500 with
         # "Task group is not initialized".
         async with mcp_app.router.lifespan_context(app):
-            warm_task = asyncio.create_task(_warm(ctx.client, ctx.caches))
             try:
                 yield
             finally:
-                warm_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError, Exception):
-                    await warm_task
                 await ctx.client.aclose()
+                ctx.store.close()
 
     middleware = [
         Middleware(

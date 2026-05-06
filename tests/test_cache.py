@@ -1,65 +1,21 @@
+"""Tests for the in-memory StatusCache (60s TTL for getChargerStatus).
+
+The bulk inventory cache moved to SQLite (``ev_mcp.store``) in Phase 6 — see
+``tests/test_store.py`` for those.
+"""
+
 from __future__ import annotations
 
 import asyncio
 
-import httpx
 import pytest
 import respx
 
-from ev_mcp.cache import StationInfoCache, StatusCache, build_caches
+from ev_mcp.cache import StatusCache, build_caches
 from ev_mcp.client import EvChargerClient
 from ev_mcp.settings import Settings
 
-from .fixtures.sample_responses import GET_CHARGER_STATUS_OK, make_info_page
-
-
-@pytest.mark.asyncio
-async def test_station_info_cache_refresh_indexes(settings: Settings) -> None:
-    page1 = make_info_page(total_count=15, page_no=1, num_of_rows=10)
-    page2 = make_info_page(total_count=15, page_no=2, num_of_rows=10)
-    pages = {1: page1, 2: page2}
-
-    def respond(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=pages[int(request.url.params["pageNo"])])
-
-    cache = StationInfoCache(ttl_s=settings.station_info_ttl, refresh_page_size=10)
-    async with respx.mock(base_url=settings.api_base_url) as router:
-        router.get("/getChargerInfo").mock(side_effect=respond)
-        async with EvChargerClient(settings) as client:
-            await cache.ensure_fresh(client)
-    assert len(cache.all_rows) == 15
-    assert "00000001" in cache.by_stat_id
-    assert "11" in cache.by_zcode
-    assert "11680" in cache.by_zscode
-    assert "EV" in cache.by_busi_id
-
-
-@pytest.mark.asyncio
-async def test_station_info_cache_uses_existing_when_fresh(settings: Settings) -> None:
-    """Second ensure_fresh on a fresh cache must NOT trigger an upstream call."""
-    cache = StationInfoCache(ttl_s=settings.station_info_ttl)
-    async with respx.mock(base_url=settings.api_base_url) as router:
-        route = router.get("/getChargerInfo").respond(
-            json=make_info_page(total_count=3, page_no=1, num_of_rows=10)
-        )
-        async with EvChargerClient(settings) as client:
-            await cache.ensure_fresh(client)
-            await cache.ensure_fresh(client)  # should be a no-op
-    assert route.call_count == 1
-
-
-@pytest.mark.asyncio
-async def test_station_info_cache_concurrent_refresh_dedupes(settings: Settings) -> None:
-    """Stampede of concurrent ensure_fresh on a cold cache → exactly one upstream call."""
-    cache = StationInfoCache(ttl_s=settings.station_info_ttl)
-    async with respx.mock(base_url=settings.api_base_url) as router:
-        route = router.get("/getChargerInfo").respond(
-            json=make_info_page(total_count=2, page_no=1, num_of_rows=10)
-        )
-        async with EvChargerClient(settings) as client:
-            await asyncio.gather(*(cache.ensure_fresh(client) for _ in range(10)))
-    assert route.call_count == 1
-    assert len(cache.all_rows) == 2
+from .fixtures.sample_responses import GET_CHARGER_STATUS_OK
 
 
 @pytest.mark.asyncio
@@ -92,6 +48,7 @@ async def test_status_cache_separate_keys(settings: Settings) -> None:
         async def _f() -> list:
             calls.append(label)
             return []
+
         return _f
 
     fa = await make_fetch("A")
@@ -120,81 +77,7 @@ async def test_status_cache_invalidate(settings: Settings) -> None:
 
 def test_build_caches_uses_settings_ttls(settings: Settings) -> None:
     caches = build_caches(settings)
-    assert caches.station_info.ttl_s == settings.station_info_ttl
     assert caches.status.ttl_s == settings.status_ttl
-
-
-# --- review-driven regressions -------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_station_info_refresh_failure_commits_bigger_partial(
-    settings: Settings,
-) -> None:
-    """Mid-iteration failure: commit partial if it's BIGGER than previous index.
-
-    Real data.go.kr scale (~500k chargers) plus its 504 gateway timeouts means
-    full warming often fails partway. Serving 200k partial rows beats 0 rows.
-    """
-    cache = StationInfoCache(ttl_s=1, refresh_page_size=10)
-
-    # Seed with a small known state (2 rows).
-    seed_payload = make_info_page(total_count=2, page_no=1, num_of_rows=10)
-    async with respx.mock(base_url=settings.api_base_url) as router:
-        router.get("/getChargerInfo").respond(json=seed_payload)
-        async with EvChargerClient(settings) as client:
-            await cache.refresh(client)
-    assert len(cache.all_rows) == 2
-
-    # Force expiry.
-    cache.fetched_at = 0.0
-
-    # Refresh: page 1 = 10 rows succeeds, page 2 = 503 fails.
-    page1 = make_info_page(total_count=20, page_no=1, num_of_rows=10)
-
-    def respond(request: httpx.Request) -> httpx.Response:
-        if int(request.url.params["pageNo"]) == 1:
-            return httpx.Response(200, json=page1)
-        return httpx.Response(503, text="boom")
-
-    async with respx.mock(base_url=settings.api_base_url) as router:
-        router.get("/getChargerInfo").mock(side_effect=respond)
-        async with EvChargerClient(settings) as client:
-            with pytest.raises(Exception):  # noqa: B017
-                await cache.refresh(client)
-
-    # Partial (10) > previous (2) → committed.
-    assert len(cache.all_rows) == 10
-
-
-@pytest.mark.asyncio
-async def test_station_info_refresh_failure_keeps_bigger_previous(
-    settings: Settings,
-) -> None:
-    """If partial < previous (e.g., immediate failure on page 1), keep previous."""
-    cache = StationInfoCache(ttl_s=1, refresh_page_size=10)
-
-    # Seed with 10 rows (a "big" previous index).
-    seed_payload = make_info_page(total_count=10, page_no=1, num_of_rows=10)
-    async with respx.mock(base_url=settings.api_base_url) as router:
-        router.get("/getChargerInfo").respond(json=seed_payload)
-        async with EvChargerClient(settings) as client:
-            await cache.refresh(client)
-    assert len(cache.all_rows) == 10
-    saved_first_id = cache.all_rows[0].stat_id
-
-    cache.fetched_at = 0.0
-
-    # Refresh: page 1 = 503 immediately. 0 partial rows.
-    async with respx.mock(base_url=settings.api_base_url) as router:
-        router.get("/getChargerInfo").respond(503, text="boom")
-        async with EvChargerClient(settings) as client:
-            with pytest.raises(Exception):  # noqa: B017
-                await cache.refresh(client)
-
-    # 0 partial < 10 previous → previous preserved.
-    assert len(cache.all_rows) == 10
-    assert cache.all_rows[0].stat_id == saved_first_id
 
 
 def test_status_cache_invalidate_clears_locks() -> None:

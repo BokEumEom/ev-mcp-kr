@@ -46,15 +46,23 @@ cp .env.example .env
 # (선택) VWORLD_KEY 입력 — 주소 → 좌표 변환에 필요
 
 # 3. 검증
-python -m pytest -q          # 78 개 테스트 통과
+python -m pytest -q          # 100+ 테스트 통과
 python -m ruff check .       # 린트
 python -m mypy src/          # 타입 체크 (strict)
 
-# 4. 로컬 실행
+# 4. 충전기 인벤토리 sync (data/chargers.db 채우기 — 첫 실행 필수)
+python scripts/sync_chargers.py
+# data.go.kr 가 페이지당 20-60s 걸리고 ~50만 행이라 풀 sync 는 길게 걸립니다.
+# Ctrl+C 로 중단해도 다음 실행 시 last_completed_page 부터 이어받음.
+
+# 5. 로컬 실행
 ev-mcp                        # http://127.0.0.1:8000/mcp 에서 streamable HTTP
 # 또는 stdio (Claude Code 와 직접 연결할 때):
 python -c "from ev_mcp.server import main; main(transport='stdio')"
 ```
+
+서버는 SQLite 인벤토리를 **read-only** 로만 사용합니다. data.go.kr getChargerInfo 호출은
+`scripts/sync_chargers.py` 가 백그라운드로 처리하므로 사용자 쿼리는 즉답 (마이크로초~ms).
 
 `/health` 확인:
 

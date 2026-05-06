@@ -11,6 +11,7 @@ from ev_mcp.context import ToolContext
 from ev_mcp.geocode import VWORLD_BASE_URL
 from ev_mcp.models import ChargerInfo
 from ev_mcp.settings import Settings
+from ev_mcp.store import ChargerStore
 from ev_mcp.tools.nearby import find_chargers_nearby, haversine_km
 
 
@@ -69,7 +70,7 @@ async def test_nearby_filters_radius_and_sorts(ctx: ToolContext) -> None:
         _make_charger("00000003", 37.5663, 126.9779),
         _make_charger("00000004", 33.5000, 126.5000),
     ]
-    ctx.caches.station_info.seed_for_testing(rows)
+    ctx.store.seed_for_testing(rows)
     results = await find_chargers_nearby(
         lat=37.4979, lng=127.0276, radius_km=2.0, ctx=ctx
     )
@@ -84,7 +85,7 @@ async def test_nearby_filters_charger_type_and_available(ctx: ToolContext) -> No
         _make_charger("S2", 37.501, 127.031, chgerType="02", stat="2"),
         _make_charger("S3", 37.502, 127.032, chgerType="04", stat="3"),
     ]
-    ctx.caches.station_info.seed_for_testing(rows)
+    ctx.store.seed_for_testing(rows)
     results = await find_chargers_nearby(
         lat=37.500,
         lng=127.030,
@@ -102,11 +103,13 @@ async def test_nearby_uses_geocoder_when_address_only(
 ) -> None:
     monkeypatch.setenv("SERVICE_KEY", "TEST_KEY_NOT_REAL")
     monkeypatch.setenv("VWORLD_KEY", "VWORLD_TEST_KEY")
+    monkeypatch.setenv("DB_PATH", ":memory:")
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
 
     rows = [_make_charger("X", 37.4980, 127.0280)]
     caches = build_caches(settings)
-    caches.station_info.seed_for_testing(rows)
+    store = ChargerStore(":memory:")
+    store.seed_for_testing(rows)
 
     vworld = {
         "response": {
@@ -115,21 +118,26 @@ async def test_nearby_uses_geocoder_when_address_only(
         }
     }
 
-    async with respx.mock(assert_all_called=False) as router:
-        router.get(VWORLD_BASE_URL).respond(json=vworld)
-        async with EvChargerClient(settings) as client:
-            ctx = ToolContext(settings=settings, client=client, caches=caches)
-            results = await find_chargers_nearby(
-                address="강남역", radius_km=1.0, ctx=ctx
-            )
-    assert len(results) == 1
-    assert results[0].stat_id == "X"
+    try:
+        async with respx.mock(assert_all_called=False) as router:
+            router.get(VWORLD_BASE_URL).respond(json=vworld)
+            async with EvChargerClient(settings) as client:
+                ctx = ToolContext(
+                    settings=settings, client=client, store=store, caches=caches
+                )
+                results = await find_chargers_nearby(
+                    address="강남역", radius_km=1.0, ctx=ctx
+                )
+        assert len(results) == 1
+        assert results[0].stat_id == "X"
+    finally:
+        store.close()
 
 
 @pytest.mark.asyncio
 async def test_nearby_address_without_vworld_raises(ctx: ToolContext) -> None:
     rows = [_make_charger("A", 37.5, 127.0)]
-    ctx.caches.station_info.seed_for_testing(rows)
+    ctx.store.seed_for_testing(rows)
     with pytest.raises(ValueError, match="VWORLD_KEY"):
         await find_chargers_nearby(address="강남역", ctx=ctx)
 
