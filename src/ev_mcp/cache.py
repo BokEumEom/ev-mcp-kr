@@ -35,7 +35,11 @@ class _Entry[T]:
     fetched_at: float
 
 
-DEFAULT_REFRESH_PAGE_SIZE = 9999
+# data.go.kr 의 게이트웨이가 numOfRows=9999 응답을 60s 넘게 돌리다 504 를 자주 던짐.
+# 2000 으로 낮추면 페이지당 응답이 게이트웨이 한계 안. 총 페이지 수 ~250 (totalCount
+# 506k 기준) → 워밍 ~100분으로 길어지지만 실패율은 크게 떨어짐. 부분 commit 정책
+# (refresh 의 except 분기) 와 합쳐 점진적으로 인덱스 채움.
+DEFAULT_REFRESH_PAGE_SIZE = 2000
 
 
 @dataclass
