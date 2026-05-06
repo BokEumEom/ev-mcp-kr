@@ -31,10 +31,10 @@
 
 ### Q3. Claude 가 도구 자체를 못 찾습니다 ("도구가 없습니다" / 연결 실패).
 
-원격 MCP URL 의 **마지막 슬래시** 를 확인하세요. FastMCP 의 streamable HTTP 경로는 `/mcp/` 로 끝나야 합니다.
+원격 MCP URL 의 **경로** 를 확인하세요. FastMCP 3.x 의 streamable HTTP 경로는 `/mcp` 입니다 (트레일링 슬래시 없음).
 
-- 정답: `https://your-domain/mcp/`
-- 오답: `https://your-domain/mcp` (슬래시 누락)
+- 정답: `https://your-domain/mcp`
+- 주의: `https://your-domain/mcp/` 로 보내면 서버가 `307 → /mcp` 로 리다이렉트합니다. POST 본문이 보존되어야 동작하지만, 일부 클라이언트는 307 을 안 따라가므로 정답 URL 을 직접 쓰는 게 안전합니다.
 - 오답: `https://your-domain` (경로 누락)
 
 또한 HTTPS 가 활성화돼 있어야 하며 (Claude 는 `https://` 만 허용), CORS 화이트리스트에 `claude.ai` / `claude.com` 이 포함되어 있어야 합니다 (기본 설정에 포함됨).

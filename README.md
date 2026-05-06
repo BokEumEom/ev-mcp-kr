@@ -91,7 +91,7 @@ docker run --rm -p 8000:8000 \
 4. (선택) Custom domain 연결. CORS 화이트리스트는 자동으로 `claude.ai`/`claude.com` 포함
 5. 배포 확인:
    - `curl https://your-domain/health` → `{"ok": true, ...}`
-   - Claude 커넥터 등록: 원격 MCP URL = `https://your-domain/mcp/` (FastMCP 의 streamable HTTP 경로)
+   - Claude 커넥터 등록: 원격 MCP URL = `https://your-domain/mcp` (FastMCP 3.x streamable HTTP 경로, 트레일링 슬래시 없음)
 
 CI/CD: `.github/workflows/ci.yml` 가 PR 에서 lint/test, `main` 에서 docker build smoke 를 실행합니다. Render 의 auto-deploy 가 `main` 푸시를 자동 감지해 배포합니다.
 
@@ -118,10 +118,10 @@ CI/CD: `.github/workflows/ci.yml` 가 PR 에서 lint/test, `main` 에서 docker 
 
 1. Claude.ai → **Settings → Connectors → Add custom connector**
 2. **Name**: `한국 EV 충전소 (ev-mcp)`
-3. **Remote MCP server URL**: `https://<your-render-domain>/mcp/`
-   - Render 기본 도메인 예: `https://ev-mcp.onrender.com/mcp/`
-   - Custom domain 사용 시 그 도메인 + `/mcp/`
-   - **마지막 슬래시 필수** — FastMCP streamable HTTP 경로 규약
+3. **Remote MCP server URL**: `https://<your-render-domain>/mcp`
+   - Render 기본 도메인 예: `https://ev-mcp.onrender.com/mcp`
+   - Custom domain 사용 시 그 도메인 + `/mcp`
+   - **트레일링 슬래시 없음** — FastMCP 3.x streamable HTTP 경로 규약 (`/mcp/` 로 보내면 307 리다이렉트)
 4. **Authentication**: `None` (이 서버는 공공 데이터 프록시라 OAuth 미사용)
 5. 저장 후 Claude 새 대화에서 자연어로 호출
 
