@@ -100,14 +100,17 @@ async def recent_status_changes(
         if zscode is None:
             raise ValueError(f"unknown sigungu: {sigungu!r}")
 
-    key = ("status_recent", period_min, zcode, zscode, limit)
+    # NOTE: period 가 이미 서버측 시간필터라 fetch 자체가 좁혀짐. 하지만 응답이
+    # statId 정렬이라 num_of_rows=100 으론 ME(환경부) 가 다 점유 → 다른 운영기관
+    # 0건. period=5 면 전국 수천 행 정도일 테니 9999 로 키워 다양성 보존.
+    key = ("status_recent", period_min, zcode, zscode)
 
     async def fetch() -> list[ChargerStatusRow]:
         _, items = await ctx.client.get_charger_status(
             period=period_min,
             zcode=zcode,
             zscode=zscode,
-            num_of_rows=min(limit * 2, 9999),
+            num_of_rows=9999,
         )
         return items
 
