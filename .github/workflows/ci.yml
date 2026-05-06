@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.11"
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install project (with dev deps)
+        run: |
+          uv venv .venv
+          uv pip install -e ".[dev]"
+
+      - name: Ruff (lint)
+        run: uv run ruff check .
+
+      - name: Mypy (strict)
+        run: uv run mypy src/
+
+      - name: Pytest
+        env:
+          # Tests use respx mocks, so the key never leaves the runner.
+          SERVICE_KEY: ci_dummy_key
+        run: uv run pytest -q
+
+  docker-build:
+    name: Docker build (smoke)
+    runs-on: ubuntu-latest
+    needs: lint-test
+    timeout-minutes: 15
+    env:
+      IMAGE_TAG: ev-mcp:ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke — boot container, hit /health
+        env:
+          SERVICE_KEY: ci_dummy_key
+        run: |
+          set -euo pipefail
+          docker run -d --name ev-mcp-smoke \
+            -e SERVICE_KEY="$SERVICE_KEY" \
+            -e LOG_LEVEL=WARNING \
+            -p 18000:8000 \
+            "$IMAGE_TAG"
+          # Wait for /health (lifespan yields immediately, so this should be fast).
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18000/health >/dev/null; then
+              echo "ok after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18000/health
+          docker logs ev-mcp-smoke | tail -50
+          docker rm -f ev-mcp-smoke

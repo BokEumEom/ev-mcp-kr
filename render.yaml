@@ -1,0 +1,41 @@
+# Render Blueprint — ev-mcp
+#
+# 사용법:
+#   1. Render 대시보드에서 "New Blueprint Instance" → 이 저장소 선택
+#   2. SERVICE_KEY (data.go.kr) + (선택) VWORLD_KEY 시크릿 입력
+#   3. Custom domain 연결 후 CORS 화이트리스트 확인
+#
+# 단일 워커 운영 — Phase 3 의 워커별 24h 캐시 분리 이슈를 회피.
+
+services:
+  - type: web
+    name: ev-mcp
+    runtime: docker
+    repo: https://github.com/bokeum/ev-mcp-kr  # fork 시 본인 owner 로 교체
+    branch: main
+    region: singapore  # 한국에서 가장 가까운 Render 리전
+    plan: standard     # 2GB RAM — station_info 캐시 ~50MB + uvicorn
+    numInstances: 1    # single-worker 권장 (per-worker 캐시 N배 회피)
+    healthCheckPath: /health
+    autoDeploy: true   # main 푸시 시 자동 배포
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: SERVICE_KEY
+        sync: false    # Render 대시보드에서 수동 입력 (시크릿)
+      - key: VWORLD_KEY
+        sync: false    # 선택 — 주소 지오코딩에 필요
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "8000"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: STATION_INFO_TTL
+        value: "86400"
+      - key: STATUS_TTL
+        value: "60"
+      - key: CORS_ORIGINS
+        value: https://claude.ai,https://claude.com,http://localhost:6274
+      - key: PYTHONUNBUFFERED
+        value: "1"

@@ -1,0 +1,45 @@
+# Build artifacts / caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+.venv/
+venv/
+
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Local secrets — never bake into image
+.env
+.env.local
+
+# Tests/docs/dev-only files don't belong in a runtime image
+tests/
+docs/
+.claude/
+.github/
+logs/
+# scripts/ is included so the runtime can use healthcheck.py;
+# add specific extract scripts to ignore individually if needed.
+scripts/extract_*.py
+
+# Editor/OS noise
+.DS_Store
+.idea/
+.vscode/
+
+# Source-only doc; the main docx spec is large and not used at runtime
+*.docx
+
+# Misc
+*.md
+!README.md
+.gitignore
+.git/
