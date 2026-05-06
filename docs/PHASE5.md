@@ -152,5 +152,3 @@ Phase 5 의 코드/문서 작업은 모두 완료됐고, 남은 것은 사용자
 - 2026-05-06 git 초기 히스토리 5 커밋 분할
 - 2026-05-06 MCP 인스펙터 스모크 (curl) + 토큰 예산 실측 → URL 슬래시 가이드 정정
 - 2026-05-06 PHASE5.md 작성
-- 2026-05-06 리포 표기 통일 → `BokEumEom/ev-mcp-kr`
-- 2026-05-06 **fix(operator): 콜드패스 버그**. data.go.kr `getChargerInfo` 가 운영기관(`bsId`) 업스트림 필터를 지원하지 않아, 캐시가 콜드일 때 페이지 1 (최대 2000행) 만 받아 클라이언트 측 필터로 환경부(ME) 외 모든 운영기관에 0건 반환하던 이슈. `tools/operator.py` 가 항상 `ensure_fresh()` 경유 후 `by_busi_id` 인덱스 룩업으로 통일. `tests/test_tools_operator.py` 의 콜드 폴백 테스트를 페이지 ordering 회귀 시나리오 (page 1=ME 9999, page 2=EV 2) 로 교체.
