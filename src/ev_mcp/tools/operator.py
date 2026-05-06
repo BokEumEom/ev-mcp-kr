@@ -5,7 +5,6 @@ from __future__ import annotations
 from ..codes_lookup import resolve_busi_id, resolve_sido
 from ..context import ToolContext
 from ..domain import ChargerSummary
-from ..models import ChargerInfo
 
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 100  # token-budget guard
@@ -20,8 +19,9 @@ async def list_chargers_by_operator(
 ) -> list[ChargerSummary]:
     """운영기관 별 충전기 목록.
 
-    캐시(24h)가 있으면 메모리에서 필터; 없으면 upstream 을 (가능한) zcode 필터로
-    호출 후 클라이언트 측에서 운영기관 필터.
+    data.go.kr getChargerInfo 는 운영기관(bsId) 업스트림 필터가 없으므로 항상
+    풀 인벤토리 캐시에서 필터. 캐시가 콜드면 ensure_fresh 가 워밍을 트리거하고
+    그 동안 호출자는 기다림 (~10-30초, 한 번). 이후 모든 호출은 메모리 룩업.
 
     Parameters
     ----------
@@ -54,16 +54,9 @@ async def list_chargers_by_operator(
         if zcode is None:
             raise ValueError(f"unknown region: {region!r}")
 
-    rows: list[ChargerInfo]
-    if ctx.caches.station_info.is_fresh():
-        rows = ctx.caches.station_info.by_busi_id.get(busi_id, [])
-        if zcode:
-            rows = [r for r in rows if r.zcode == zcode]
-    else:
-        _, fetched = await ctx.client.get_charger_info(
-            zcode=zcode,
-            num_of_rows=min(max(limit * 8, 500), 2000),
-        )
-        rows = [r for r in fetched if r.busi_id == busi_id]
+    await ctx.caches.station_info.ensure_fresh(ctx.client)
+    rows = ctx.caches.station_info.by_busi_id.get(busi_id, [])
+    if zcode:
+        rows = [r for r in rows if r.zcode == zcode]
 
     return [ChargerSummary.from_info(r) for r in rows[:limit]]
