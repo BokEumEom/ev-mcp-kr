@@ -11,7 +11,7 @@ services:
   - type: web
     name: ev-mcp
     runtime: docker
-    repo: https://github.com/bokeum/ev-mcp-kr  # fork 시 본인 owner 로 교체
+    repo: https://github.com/BokEumEom/ev-mcp-kr  # fork 시 본인 owner 로 교체
     branch: main
     region: singapore  # 한국에서 가장 가까운 Render 리전
     plan: standard     # 2GB RAM — station_info 캐시 ~50MB + uvicorn

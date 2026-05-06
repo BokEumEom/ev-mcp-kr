@@ -62,8 +62,8 @@
 
 버그·기능 요청·문서 개선은 GitHub 저장소의 Issues 에서 받습니다.
 
-- 저장소 URL: <https://github.com/bokeum/ev-mcp-kr>
-- 이슈 트래커: <https://github.com/bokeum/ev-mcp-kr/issues>
+- 저장소 URL: <https://github.com/BokEumEom/ev-mcp-kr>
+- 이슈 트래커: <https://github.com/BokEumEom/ev-mcp-kr/issues>
 
 > 직접 fork 해서 운영하는 인스턴스를 사용 중이라면 운영자가 안내한 저장소를 우선 확인하세요.
 
@@ -78,7 +78,7 @@
 
 보안 취약점은 **공개 이슈로 올리지 마시고** GitHub Security Advisory 비공개 채널로 알려 주세요.
 
-- **GitHub Security Advisory**: <https://github.com/bokeum/ev-mcp-kr/security/advisories/new>
+- **GitHub Security Advisory**: <https://github.com/BokEumEom/ev-mcp-kr/security/advisories/new>
 
 `SERVICE_KEY` / `VWORLD_KEY` 노출, RCE, SSRF, 인증 우회, 시크릿 마스킹 회피 등은 모두 위 채널로 부탁드립니다. 신고 시 가능하다면 PoC 코드와 영향 범위를 함께 적어 주세요.
 

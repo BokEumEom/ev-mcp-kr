@@ -6,7 +6,7 @@
 
 ## 요약 (3줄)
 
-Claude 원격 MCP 디렉터리 제출에 필요한 **`docs/PRIVACY.md` + `docs/SUPPORT.md`** 작성, **placeholder 모두 치환**(`bokeum/ev-mcp-kr` + GitHub Security Advisory 단일 채널), **README 에 "Claude 에 커넥터로 등록" 섹션 + 사용 예시 3 개** 추가했습니다. 로컬 MCP 인스펙터 스모크에서 **FastMCP 3.x streamable HTTP 경로가 `/mcp` (트레일링 슬래시 없음)** 임을 확인하고 그에 맞춰 README/SUPPORT 의 URL 가이드를 정정했습니다. Phase 1~4 결과물은 한 번도 git 커밋되지 않은 상태였기에, **Phase 단위 5 커밋** 으로 초기 히스토리를 분할했습니다.
+Claude 원격 MCP 디렉터리 제출에 필요한 **`docs/PRIVACY.md` + `docs/SUPPORT.md`** 작성, **placeholder 모두 치환**(`BokEumEom/ev-mcp-kr` + GitHub Security Advisory 단일 채널), **README 에 "Claude 에 커넥터로 등록" 섹션 + 사용 예시 3 개** 추가했습니다. 로컬 MCP 인스펙터 스모크에서 **FastMCP 3.x streamable HTTP 경로가 `/mcp` (트레일링 슬래시 없음)** 임을 확인하고 그에 맞춰 README/SUPPORT 의 URL 가이드를 정정했습니다. Phase 1~4 결과물은 한 번도 git 커밋되지 않은 상태였기에, **Phase 단위 5 커밋** 으로 초기 히스토리를 분할했습니다.
 
 ## 추가/변경된 모듈
 
@@ -16,7 +16,7 @@ Claude 원격 MCP 디렉터리 제출에 필요한 **`docs/PRIVACY.md` + `docs/S
 | `docs/SUPPORT.md` | Claude 제출 필수 — 5 FAQ + GitHub Issues + Security Advisory + no-SLA 디스클레이머 |
 | `docs/PHASE5.md` | (이 문서) Phase 5 보고서 |
 | `README.md` | "Claude 에 커넥터로 등록" 섹션 + 자연어 질문 → 도구 호출 예 3 개 + Phase 4/5 문서 링크 + URL 트레일링 슬래시 정정 |
-| `render.yaml` | `repo:` placeholder → `bokeum/ev-mcp-kr` |
+| `render.yaml` | `repo:` placeholder → `BokEumEom/ev-mcp-kr` |
 | `docs/SUPPORT.md` | URL 트레일링 슬래시 가이드 정정 (`/mcp/` → `/mcp` 카논, 307 리다이렉트 주의 명시) |
 
 ## 핵심 결정
@@ -128,9 +128,9 @@ ec1102c  feat(phase3): FastMCP server + Streamable HTTP + /health + CORS + cache
 
 Phase 5 의 코드/문서 작업은 모두 완료됐고, 남은 것은 사용자가 직접 수행해야 하는 운영 액션입니다.
 
-1. **GitHub 저장소 생성 + 푸시.** `gh repo create bokeum/ev-mcp-kr --public --source=. --push` (또는 GitHub UI). attribution disabled 라 커밋 메시지에 Claude 흔적 없음.
+1. **GitHub 저장소 생성 + 푸시.** `gh repo create BokEumEom/ev-mcp-kr --public --source=. --push` (또는 GitHub UI). attribution disabled 라 커밋 메시지에 Claude 흔적 없음.
 2. **Render Blueprint 배포.**
-   - Render 대시보드 → New Blueprint Instance → 저장소 선택 (`bokeum/ev-mcp-kr`)
+   - Render 대시보드 → New Blueprint Instance → 저장소 선택 (`BokEumEom/ev-mcp-kr`)
    - Environment 에 진짜 `SERVICE_KEY` (data.go.kr) + `VWORLD_KEY` (선택) 입력
    - 첫 배포 후 도메인 (예: `https://ev-mcp.onrender.com`) 확정
 3. **운영 검증.**
@@ -140,7 +140,7 @@ Phase 5 의 코드/문서 작업은 모두 완료됐고, 남은 것은 사용자
 4. **Claude 에 커넥터 등록 → 자연어 검증 3 회.** README 의 사용 예시 3 개를 그대로 던져 보고 응답 캡처.
 5. **Google Form 제출.** [Claude 원격 MCP 서버 제출 가이드](https://support.claude.com/ko/articles/12922490) 의 폼에:
    - 서버 URL: `https://<domain>/mcp`
-   - PRIVACY/SUPPORT 링크: `https://github.com/bokeum/ev-mcp-kr/blob/main/docs/PRIVACY.md` 등
+   - PRIVACY/SUPPORT 링크: `https://github.com/BokEumEom/ev-mcp-kr/blob/main/docs/PRIVACY.md` 등
    - 사용 예시 3 개 (README 발췌)
 6. **(선택) 토큰 예산 동적 도구 실측.** 진짜 SERVICE_KEY 로 `find_chargers_nearby(limit=20)` 응답 크기 측정 → README 에 "한 응답 평균 N KB" 기록.
 
