@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 
 from ..client import EvChargerError
 from ..codes_lookup import resolve_sido, resolve_sigungu
@@ -115,4 +116,12 @@ async def recent_status_changes(
         return items
 
     rows = await ctx.caches.status.get_or_fetch(key, fetch)
-    return [StatusChange.from_row(r) for r in rows[:limit]]
+    # Upstream returns rows sorted by statId. statId is prefixed by busi_id
+    # (ME174013, CV0001, EV0001, ...) — so a naive [:limit] slice would put all
+    # `M`-prefixed (= 환경부) entries first, hiding every other operator. Sort
+    # by recency so [:limit] yields the *latest* changes across all operators
+    # (which is also the natural meaning of "최근 N분 변경").
+    sorted_rows = sorted(
+        rows, key=lambda r: r.stat_upd_dt or datetime.min, reverse=True
+    )
+    return [StatusChange.from_row(r) for r in sorted_rows[:limit]]
