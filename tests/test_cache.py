@@ -128,25 +128,28 @@ def test_build_caches_uses_settings_ttls(settings: Settings) -> None:
 
 
 @pytest.mark.asyncio
-async def test_station_info_refresh_failure_keeps_previous_index(
+async def test_station_info_refresh_failure_commits_bigger_partial(
     settings: Settings,
 ) -> None:
-    """If a refresh raises mid-iteration, the previous index must survive."""
+    """Mid-iteration failure: commit partial if it's BIGGER than previous index.
+
+    Real data.go.kr scale (~500k chargers) plus its 504 gateway timeouts means
+    full warming often fails partway. Serving 200k partial rows beats 0 rows.
+    """
     cache = StationInfoCache(ttl_s=1, refresh_page_size=10)
 
-    # Seed with a known good state.
+    # Seed with a small known state (2 rows).
     seed_payload = make_info_page(total_count=2, page_no=1, num_of_rows=10)
     async with respx.mock(base_url=settings.api_base_url) as router:
         router.get("/getChargerInfo").respond(json=seed_payload)
         async with EvChargerClient(settings) as client:
             await cache.refresh(client)
     assert len(cache.all_rows) == 2
-    saved_first_id = cache.all_rows[0].stat_id
 
     # Force expiry.
     cache.fetched_at = 0.0
 
-    # Next refresh blows up on the second page (after one page of rows accumulated).
+    # Refresh: page 1 = 10 rows succeeds, page 2 = 503 fails.
     page1 = make_info_page(total_count=20, page_no=1, num_of_rows=10)
 
     def respond(request: httpx.Request) -> httpx.Response:
@@ -160,8 +163,37 @@ async def test_station_info_refresh_failure_keeps_previous_index(
             with pytest.raises(Exception):  # noqa: B017
                 await cache.refresh(client)
 
-    # Original index is still intact — partial state was NOT applied.
-    assert len(cache.all_rows) == 2
+    # Partial (10) > previous (2) → committed.
+    assert len(cache.all_rows) == 10
+
+
+@pytest.mark.asyncio
+async def test_station_info_refresh_failure_keeps_bigger_previous(
+    settings: Settings,
+) -> None:
+    """If partial < previous (e.g., immediate failure on page 1), keep previous."""
+    cache = StationInfoCache(ttl_s=1, refresh_page_size=10)
+
+    # Seed with 10 rows (a "big" previous index).
+    seed_payload = make_info_page(total_count=10, page_no=1, num_of_rows=10)
+    async with respx.mock(base_url=settings.api_base_url) as router:
+        router.get("/getChargerInfo").respond(json=seed_payload)
+        async with EvChargerClient(settings) as client:
+            await cache.refresh(client)
+    assert len(cache.all_rows) == 10
+    saved_first_id = cache.all_rows[0].stat_id
+
+    cache.fetched_at = 0.0
+
+    # Refresh: page 1 = 503 immediately. 0 partial rows.
+    async with respx.mock(base_url=settings.api_base_url) as router:
+        router.get("/getChargerInfo").respond(503, text="boom")
+        async with EvChargerClient(settings) as client:
+            with pytest.raises(Exception):  # noqa: B017
+                await cache.refresh(client)
+
+    # 0 partial < 10 previous → previous preserved.
+    assert len(cache.all_rows) == 10
     assert cache.all_rows[0].stat_id == saved_first_id
 
 

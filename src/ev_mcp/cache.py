@@ -78,21 +78,34 @@ class StationInfoCache:
     async def refresh(self, client: EvChargerClient) -> None:
         """Pull every page from upstream, rebuild indexes.
 
-        On failure, the existing index is preserved (no partial overwrite).
-        Errors are re-raised; the caller decides how to surface them. We log a
-        warning here with a *redacted* message so any local SERVICE_KEY traces
-        in the exception chain are scrubbed before output.
+        On failure, partial rows collected so far are still committed if we
+        have more than what's currently cached — covering most operators in
+        a partial scan beats serving a 0-row index. Errors are re-raised so
+        the caller knows the cache is incomplete (is_fresh stays True only
+        if the new partial is bigger than the previous index, otherwise the
+        previous index is preserved).
         """
         rows: list[ChargerInfo] = []
         try:
             async for r in client.iter_all_charger_info(page_size=self.refresh_page_size):
                 rows.append(r)
         except Exception as e:
-            logger.warning(
-                "station_info refresh aborted; keeping previous index (%d rows): %s",
-                len(self.all_rows),
-                client.redact(e),
-            )
+            previous = len(self.all_rows)
+            if len(rows) > previous:
+                self._rebuild_indexes(rows)
+                self.fetched_at = time.monotonic()
+                logger.warning(
+                    "station_info refresh aborted at %d rows (was %d); committing partial: %s",
+                    len(rows),
+                    previous,
+                    client.redact(e),
+                )
+            else:
+                logger.warning(
+                    "station_info refresh aborted; keeping previous index (%d rows): %s",
+                    previous,
+                    client.redact(e),
+                )
             raise
         self._rebuild_indexes(rows)
         self.fetched_at = time.monotonic()
