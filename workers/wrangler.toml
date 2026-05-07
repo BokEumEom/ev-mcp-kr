@@ -1,0 +1,29 @@
+name = "ev-mcp"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Single global Durable Object for the charger inventory.
+# All read traffic ultimately routes here (DO has its own SQLite ~ up to 1GB).
+[[durable_objects.bindings]]
+name = "INVENTORY"
+class_name = "ChargerInventory"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChargerInventory"]
+
+# Sync runs as a Cron-triggered fetch on this same worker (Stage 4).
+# Disabled until Stage 4 ships.
+# [triggers]
+# crons = ["0 18 * * *"]   # 03:00 KST = 18:00 UTC previous day
+
+# Secrets — set via:
+#   wrangler secret put SERVICE_KEY
+#   wrangler secret put VWORLD_KEY   # optional
+[vars]
+LOG_LEVEL = "INFO"
+
+# Tail / observability
+[observability]
+enabled = true

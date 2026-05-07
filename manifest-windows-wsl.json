@@ -1,0 +1,94 @@
+{
+  "manifest_version": "0.2",
+  "name": "ev-mcp",
+  "display_name": "한국 EV 충전소 (WSL)",
+  "version": "0.1.0",
+  "description": "한국환경공단 전기자동차 충전소 정보 OpenAPI v1.23 — Windows Claude Desktop 에서 WSL Python 호출",
+  "long_description": "Windows Claude Desktop 이 wsl.exe 를 통해 WSL Ubuntu 안의 venv Python 으로 ev-mcp 를 띄웁니다. WSL 에 venv 가 이미 설정돼 있고 (uv pip install -e .) 거기 의존성이 들어 있다는 가정. Linux/macOS 사용자는 manifest.json 변형 사용.",
+  "author": {"name": "BokEumEom", "url": "https://github.com/BokEumEom/ev-mcp-kr"},
+  "homepage": "https://github.com/BokEumEom/ev-mcp-kr",
+  "documentation": "https://github.com/BokEumEom/ev-mcp-kr/blob/main/README.md",
+  "support": "https://github.com/BokEumEom/ev-mcp-kr/issues",
+  "license": "MIT",
+  "repository": {"type": "git", "url": "https://github.com/BokEumEom/ev-mcp-kr"},
+  "keywords": ["korea", "ev", "charger", "data.go.kr", "korean", "wsl", "전기차", "충전소"],
+  "server": {
+    "type": "binary",
+    "entry_point": "src/ev_mcp/server.py",
+    "mcp_config": {
+      "command": "wsl.exe",
+      "args": [
+        "-d",
+        "${user_config.wsl_distro}",
+        "${user_config.wsl_python_path}",
+        "-m",
+        "ev_mcp.server",
+        "--stdio"
+      ],
+      "env": {
+        "SERVICE_KEY": "${user_config.service_key}",
+        "VWORLD_KEY": "${user_config.vworld_key}",
+        "DB_PATH": "${user_config.db_path}",
+        "LOG_LEVEL": "${user_config.log_level}",
+        "WSLENV": "SERVICE_KEY:VWORLD_KEY:DB_PATH:LOG_LEVEL"
+      }
+    }
+  },
+  "tools": [
+    {"name": "find_chargers_nearby", "description": "좌표/주소 기준 반경 내 충전기 검색"},
+    {"name": "get_charger_status", "description": "특정 충전기의 실시간 상태"},
+    {"name": "search_chargers_by_region", "description": "시도/시군구로 충전기 검색"},
+    {"name": "list_chargers_by_operator", "description": "운영기관별 충전기 목록 — 환경부, 채비, 에버온, GS차지비, LG유플러스 등 180여 운영자"},
+    {"name": "get_station_details", "description": "충전소 ID 의 모든 충전기 + 메타"},
+    {"name": "recent_status_changes", "description": "최근 N(1~10)분 사이 상태가 변경된 충전기 (최신순)"},
+    {"name": "lookup_codes", "description": "공통 코드 테이블 (시도/시군구/충전기타입/상태/운영기관/구분)"}
+  ],
+  "compatibility": {
+    "platforms": ["win32"]
+  },
+  "user_config": {
+    "wsl_distro": {
+      "type": "string",
+      "title": "WSL distro 이름",
+      "description": "wsl.exe -d 인자. 기본 Ubuntu. 다른 이름 (Ubuntu-22.04 등) 이면 변경.",
+      "required": false,
+      "default": "Ubuntu"
+    },
+    "wsl_python_path": {
+      "type": "string",
+      "title": "WSL venv python 절대경로",
+      "description": "WSL 안의 venv python 절대경로. 예: /home/bokeum/ai/ev_mcp/.venv/bin/python",
+      "required": true,
+      "default": "/home/bokeum/ai/ev_mcp/.venv/bin/python"
+    },
+    "service_key": {
+      "type": "string",
+      "title": "data.go.kr SERVICE_KEY",
+      "description": "한국환경공단 전기자동차 충전소 OpenAPI 인증키 (Decoding 권장)",
+      "required": true,
+      "sensitive": true
+    },
+    "vworld_key": {
+      "type": "string",
+      "title": "VWorld 지오코더 키 (선택)",
+      "description": "주소 → 좌표 변환에 필요. 없으면 좌표 직접 입력만",
+      "required": false,
+      "sensitive": true,
+      "default": ""
+    },
+    "db_path": {
+      "type": "string",
+      "title": "WSL 안 SQLite DB 경로",
+      "description": "WSL 절대경로 (Linux 형식). 예: /home/bokeum/ai/ev_mcp/data/chargers.db",
+      "required": false,
+      "default": "/home/bokeum/ai/ev_mcp/data/chargers.db"
+    },
+    "log_level": {
+      "type": "string",
+      "title": "Log level",
+      "description": "DEBUG / INFO / WARNING / ERROR. 기본 INFO.",
+      "required": false,
+      "default": "INFO"
+    }
+  }
+}
