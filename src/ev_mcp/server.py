@@ -10,6 +10,7 @@ Streamable HTTP transport is mounted at ``/mcp`` (FastMCP default).
 
 from __future__ import annotations
 
+import argparse
 import contextlib
 import json
 import logging
@@ -420,8 +421,36 @@ def build_app() -> Starlette:
     return _build_starlette_app(mcp, ctx)
 
 
-def main(transport: Literal["http", "stdio"] = "http") -> None:
-    """Console-script entry. ``ev-mcp`` runs HTTP; pass stdio for local dev."""
+def main(transport: Literal["http", "stdio"] | None = None) -> None:
+    """Console-script entry.
+
+    Default: HTTP via uvicorn (Render / docker).
+    ``--stdio``: launch FastMCP over stdin/stdout (Claude Desktop via MCPB).
+
+    Programmatic callers can pass ``transport`` directly; CLI users pass
+    ``--stdio`` or ``--http`` (default http).
+    """
+    if transport is None:
+        parser = argparse.ArgumentParser(prog="ev-mcp", description=__doc__)
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            "--stdio",
+            dest="transport",
+            action="store_const",
+            const="stdio",
+            help="Run over stdio (for Claude Desktop / MCPB)",
+        )
+        group.add_argument(
+            "--http",
+            dest="transport",
+            action="store_const",
+            const="http",
+            help="Run HTTP server via uvicorn (default; for Render / docker)",
+        )
+        parser.set_defaults(transport="http")
+        args = parser.parse_args()
+        transport = args.transport
+
     settings = load_settings()
     if transport == "stdio":
         mcp, _ctx = build_server(settings)

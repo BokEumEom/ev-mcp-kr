@@ -110,7 +110,55 @@ CI/CD: `.github/workflows/ci.yml` 가 PR 에서 lint/test, `main` 에서 docker 
 - **콜드 스타트 시 첫 요청.** 캐시 워밍이 백그라운드에서 돌아 `/health` 는 즉시 200. 첫 사용자 요청은 cold-path (시도별 단일 fetch) 로 처리되어 평균 응답 시간 +수 초.
 - **`SERVICE_KEY` 위생.** `.env` 만 사용, 코드/로그/예외 어디에도 등장 X. 모든 외부 응답·예외 메시지는 `EvChargerClient.redact()` 로 마스킹.
 
-## Claude 커넥터 디렉터리 제출
+## Claude Desktop 에 MCPB 로 설치 (권장)
+
+원격 호스팅 없이 **사용자 PC 에서 직접** 도는 MCPB 번들 (`ev-mcp.mcpb`) 을 제공합니다. 호스팅 비용/CC 등록 불필요, 데이터고고개알 키도 본인 키.
+
+### 설치 절차
+
+1. **Python 3.12+ + ev-mcp 패키지 설치**
+
+   ```bash
+   git clone https://github.com/BokEumEom/ev-mcp-kr.git
+   cd ev-mcp-kr
+   uv venv .venv && source .venv/bin/activate
+   uv pip install -e .
+   ```
+
+2. **충전기 인벤토리 sync (첫 1회 — ~1시간, 영속됨)**
+
+   ```bash
+   ev-mcp-sync   # data/chargers.db 채움. 끊겨도 다음 실행시 이어받음.
+   ```
+
+3. **`.mcpb` 빌드** (또는 GitHub Releases 에서 다운로드)
+
+   ```bash
+   npm install -g @anthropic-ai/mcpb
+   mcpb pack . ev-mcp.mcpb
+   ```
+
+4. **Claude Desktop 설치**
+
+   - Claude Desktop → Settings → Extensions → Install from File
+   - `ev-mcp.mcpb` 선택
+   - 설정 화면에서:
+     - **SERVICE_KEY**: data.go.kr Decoding 키 (필수)
+     - **VWORLD_KEY**: 주소 검색 쓸 때만 (선택)
+     - **DB_PATH**: 위 단계 2 의 `data/chargers.db` 절대경로
+     - **Python path**: 위 venv 의 `python` 절대경로 (manifest 의 `command` 가 `python` 이므로 PATH 에 venv 의 python 이 잡혀 있어야 함)
+
+5. **Claude 새 대화에서 자연어로 호출** — 아래 "사용 예시" 참고.
+
+### Claude Desktop 설치 시 트러블슈팅
+
+- **`ModuleNotFoundError: ev_mcp`** — venv 활성화 안 됐거나 `pip install -e .` 안 됨. 단계 1 다시.
+- **`store.rows = 0`** — sync 가 안 돌았음. `ev-mcp-sync` 실행해서 DB 채우기.
+- **데이터고고개알 504/timeout** — 키는 맞지만 API 가 일시 부하. 잠시 후 sync 재시도. 이미 받은 만큼은 영속이라 손실 없음.
+
+---
+
+## Claude 원격 커넥터 디렉터리 제출 (선택, 호스팅 필요)
 
 이 서버는 [Claude 원격 MCP 서버 제출 가이드](https://support.claude.com/ko/articles/12922490) 의 요건을 만족합니다:
 

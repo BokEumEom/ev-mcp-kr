@@ -25,7 +25,7 @@ python -m mypy src/
 - **Phase 4 (완료):** Dockerfile + Render Blueprint + GitHub Actions CI + 통합 로깅 + URL-encoded 키 마스킹 + HTTPS 강제, 테스트 84건. → `docs/PHASE4.md`
 - **Phase 5 (완료):** PRIVACY/SUPPORT 문서, README 등록 가이드 + 사용 예시 3개, MCP 인스펙터 스모크. → `docs/PHASE5.md`
 - **Phase 6 (완료):** SQLite 영속 store + sync 스크립트 분리. in-memory 24h 캐시 → `data/chargers.db`. 테스트 102건. → `docs/PHASE6.md`
-- **Phase 7 (예정):** Render 배포 영속 디스크 + sync 스케줄.
+- **Phase 7 (완료):** MCPB 번들 (`ev-mcp.mcpb`) — Claude Desktop 직접 설치. stdio CLI + `ev-mcp-sync` 콘솔 + manifest.json. → `docs/PHASE7.md`
 
 전체 계획서: `docs/PLAN.md`
 

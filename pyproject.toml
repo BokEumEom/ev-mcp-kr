@@ -29,6 +29,7 @@ dev = [
 
 [project.scripts]
 ev-mcp = "ev_mcp.server:main"
+ev-mcp-sync = "ev_mcp.sync:main"
 
 [build-system]
 requires = ["hatchling"]

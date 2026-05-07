@@ -1,0 +1,103 @@
+{
+  "manifest_version": "0.2",
+  "name": "ev-mcp",
+  "display_name": "한국 EV 충전소",
+  "version": "0.1.0",
+  "description": "한국환경공단 전기자동차 충전소 정보 OpenAPI v1.23 을 자연어로 조회 — 위치/운영기관/시도별 검색 + 실시간 상태",
+  "long_description": "Claude Desktop 안에서 한국 EV 충전소를 자연어로 찾으세요.\n\n예시:\n• \"강남역 근처 1km 안에 사용 가능한 DC콤보 충전기 알려줘\"\n• \"채비가 운영하는 서울 충전기 50곳\"\n• \"충전소 28260005 의 02번 충전기 지금 상태\"\n• \"최근 5분 사이 상태가 바뀐 서울 충전기\"\n\n전체 데이터(약 50만 충전기)는 SQLite 파일에 영속화되어 첫 sync 후 마이크로초 단위 즉답.",
+  "author": {
+    "name": "BokEumEom",
+    "url": "https://github.com/BokEumEom/ev-mcp-kr"
+  },
+  "homepage": "https://github.com/BokEumEom/ev-mcp-kr",
+  "documentation": "https://github.com/BokEumEom/ev-mcp-kr/blob/main/README.md",
+  "support": "https://github.com/BokEumEom/ev-mcp-kr/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BokEumEom/ev-mcp-kr"
+  },
+  "keywords": ["korea", "ev", "charger", "data.go.kr", "korean", "전기차", "충전소"],
+  "server": {
+    "type": "python",
+    "entry_point": "src/ev_mcp/server.py",
+    "mcp_config": {
+      "command": "python",
+      "args": ["-m", "ev_mcp.server", "--stdio"],
+      "env": {
+        "SERVICE_KEY": "${user_config.service_key}",
+        "VWORLD_KEY": "${user_config.vworld_key}",
+        "DB_PATH": "${user_config.db_path}",
+        "LOG_LEVEL": "${user_config.log_level}",
+        "PYTHONPATH": "${__dirname}/src"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "find_chargers_nearby",
+      "description": "좌표/주소 기준 반경 내 충전기 검색 (haversine + bbox 인덱스)"
+    },
+    {
+      "name": "get_charger_status",
+      "description": "특정 충전기의 실시간 상태"
+    },
+    {
+      "name": "search_chargers_by_region",
+      "description": "시도/시군구로 충전기 검색"
+    },
+    {
+      "name": "list_chargers_by_operator",
+      "description": "운영기관(busiId)별 충전기 목록 — 환경부, 채비, 에버온, GS차지비, LG유플러스 등 180여 운영자"
+    },
+    {
+      "name": "get_station_details",
+      "description": "충전소 ID 의 모든 충전기 + 메타"
+    },
+    {
+      "name": "recent_status_changes",
+      "description": "최근 N(1~10)분 사이 상태가 변경된 충전기 (최신순 정렬)"
+    },
+    {
+      "name": "lookup_codes",
+      "description": "공통 코드 테이블 (시도/시군구/충전기타입/상태/운영기관/구분) 조회"
+    }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "runtimes": {
+      "python": ">=3.12"
+    }
+  },
+  "user_config": {
+    "service_key": {
+      "type": "string",
+      "title": "data.go.kr SERVICE_KEY",
+      "description": "한국환경공단_전기자동차 충전소 정보 OpenAPI v1.23 활용신청 후 발급받은 인증키 (Decoding 키 권장 — `+`/`/`/`=` 그대로 들어있는 형태)",
+      "required": true,
+      "sensitive": true
+    },
+    "vworld_key": {
+      "type": "string",
+      "title": "VWorld 지오코더 키 (선택)",
+      "description": "주소 → 좌표 변환 (find_chargers_nearby 의 address 인자) 사용 시 필요. 없으면 좌표 직접 입력만 가능",
+      "required": false,
+      "sensitive": true,
+      "default": ""
+    },
+    "db_path": {
+      "type": "string",
+      "title": "SQLite DB 경로",
+      "description": "충전기 인벤토리 SQLite 파일 경로. ev-mcp-sync 명령으로 채워야 함 (첫 sync ~수 시간, 506k 행 ~100MB).",
+      "required": false,
+      "default": "${HOME}/.ev-mcp/chargers.db"
+    },
+    "log_level": {
+      "type": "string",
+      "title": "Log level",
+      "description": "DEBUG / INFO / WARNING / ERROR. 기본 INFO.",
+      "required": false,
+      "default": "INFO"
+    }
+  }
+}

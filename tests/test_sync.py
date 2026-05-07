@@ -1,23 +1,17 @@
-"""Smoke tests for scripts/sync_chargers.py."""
+"""Smoke tests for ev_mcp.sync (CLI: ``ev-mcp-sync``)."""
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import httpx
 import pytest
 import respx
 
-# Make `scripts/` importable in tests.
-_REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_REPO / "scripts"))
+from ev_mcp import sync as sync_chargers
+from ev_mcp.store import ChargerStore
 
-import sync_chargers  # type: ignore[import-not-found]  # noqa: E402
-
-from ev_mcp.store import ChargerStore  # noqa: E402
-
-from .fixtures.sample_responses import make_info_page  # noqa: E402
+from .fixtures.sample_responses import make_info_page
 
 
 @pytest.mark.asyncio
