@@ -20,8 +20,10 @@ import { CODE_CATEGORIES, codeTables } from "./codes/index.js";
 import type { InventoryStore } from "./inventory_store.js";
 import {
   findChargersNearby,
+  getStationDetails,
   type InventoryReader,
   listChargersByOperator,
+  searchChargersByRegion,
 } from "./tools/inventory.js";
 
 export interface Env {
@@ -44,6 +46,8 @@ export class ChargerInventory extends McpAgent<Env> {
     this.registerLookupCodes();
     this.registerListChargersByOperator();
     this.registerFindChargersNearby();
+    this.registerSearchChargersByRegion();
+    this.registerGetStationDetails();
   }
 
   /** Get an `InventoryReader` view of the global InventoryStore DO. */
@@ -102,6 +106,37 @@ export class ChargerInventory extends McpAgent<Env> {
         limit: z.number().int().min(1).max(100).default(20),
       },
       async (args) => findChargersNearby(this.inventory(), args),
+    );
+  }
+
+  private registerSearchChargersByRegion(): void {
+    this.server.tool(
+      "search_chargers_by_region",
+      "시도(필수) + 시군구(선택) 로 충전기 검색. 시도/시군구는 한국어 이름 또는 " +
+        "코드 모두 입력 가능. 동명의 시군구가 여러 시도에 있는 경우 district 코드를 " +
+        "직접 입력해야 합니다 (lookup_codes(sigungu) 참고).",
+      {
+        region: z.string().min(1).describe("시도명 또는 zcode (예: 서울특별시 / 11)"),
+        district: z
+          .string()
+          .optional()
+          .describe("시군구명 또는 zscode (예: 강남구 / 11680)"),
+        limit: z.number().int().min(1).max(500).default(50),
+      },
+      async (args) => searchChargersByRegion(this.inventory(), args),
+    );
+  }
+
+  private registerGetStationDetails(): void {
+    this.server.tool(
+      "get_station_details",
+      "충전소 ID(stat_id) 로 충전소 상세 + 소속 충전기(chger) 전체 조회. " +
+        "stat_id 는 find_chargers_nearby / search_chargers_by_region / " +
+        "list_chargers_by_operator 응답에서 확인 가능.",
+      {
+        stat_id: z.string().min(1).describe("충전소 ID (예: ME000001)"),
+      },
+      async (args) => getStationDetails(this.inventory(), args),
     );
   }
 }

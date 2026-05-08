@@ -10,7 +10,9 @@ import {
   chargerTypeLabel,
   resolveBusiId,
   resolveSido,
+  resolveSigungu,
   sidoLabel,
+  sigunguLabel,
   statLabel,
 } from "../codes/index.js";
 import type { ChargerInfo } from "../types.js";
@@ -23,12 +25,15 @@ const EARTH_RADIUS_KM = 6371.0088;
  * even when the underlying method is synchronous.
  */
 export interface InventoryReader {
+  byStatId(statId: string): Promise<ChargerInfo[]>;
   byBusiId(busiId: string, limit?: number): Promise<ChargerInfo[]>;
   byBusiIdAndZcode(
     busiId: string,
     zcode: string,
     limit?: number,
   ): Promise<ChargerInfo[]>;
+  byZcode(zcode: string, limit?: number): Promise<ChargerInfo[]>;
+  byZscode(zscode: string, limit?: number): Promise<ChargerInfo[]>;
   nearLatLng(
     lat: number,
     lng: number,
@@ -194,6 +199,137 @@ export async function findChargersNearby(
     count: top.length,
     chargers: top,
   };
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    structuredContent: payload,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// search_chargers_by_region
+// ---------------------------------------------------------------------------
+
+export interface RegionArgs {
+  region: string;
+  district?: string | undefined;
+  limit?: number | undefined;
+}
+
+export async function searchChargersByRegion(
+  inv: InventoryReader,
+  args: RegionArgs,
+): Promise<ToolResult> {
+  const limit = args.limit ?? 50;
+  const zcode = resolveSido(args.region);
+  if (zcode == null) {
+    throw new Error(
+      `시도 '${args.region}' 을(를) 찾을 수 없습니다. lookup_codes(sido) 로 코드 확인 가능.`,
+    );
+  }
+
+  let zscode: string | null = null;
+  if (args.district) {
+    zscode = resolveSigungu(args.district);
+    if (zscode == null) {
+      throw new Error(
+        `시군구 '${args.district}' 을(를) 찾을 수 없거나 동명 시군구가 여러 시도에 있어 모호합니다. ` +
+          `lookup_codes(sigungu) 로 정확한 코드 확인 후 입력하세요.`,
+      );
+    }
+  }
+
+  const rows =
+    zscode == null ? await inv.byZcode(zcode, limit) : await inv.byZscode(zscode, limit);
+
+  const summaries = rows.map(summarize);
+  const payload: Record<string, unknown> = {
+    region: sidoLabel(zcode),
+    zcode,
+    district: zscode == null ? null : sigunguLabel(zscode),
+    zscode,
+    count: summaries.length,
+    chargers: summaries,
+  };
+  return {
+    content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    structuredContent: payload,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// get_station_details
+// ---------------------------------------------------------------------------
+
+export interface StationArgs {
+  stat_id: string;
+}
+
+export async function getStationDetails(
+  inv: InventoryReader,
+  args: StationArgs,
+): Promise<ToolResult> {
+  const rows = await inv.byStatId(args.stat_id);
+  if (rows.length === 0) {
+    const payload: Record<string, unknown> = {
+      stat_id: args.stat_id,
+      found: false,
+      chargers: [],
+    };
+    return {
+      content: [
+        {
+          type: "text",
+          text: `충전소 ID '${args.stat_id}' 에 해당하는 데이터가 없습니다. ` +
+            `상세 검색은 search_chargers_by_region 또는 find_chargers_nearby 로 stat_id 확인 후 호출하세요.`,
+        },
+      ],
+      structuredContent: payload,
+    };
+  }
+
+  // Station-level fields are common across rows; pick from the first.
+  const head = rows[0]!;
+  const chargers = rows.map((c) => ({
+    chger_id: c.chger_id,
+    chger_type: c.chger_type,
+    chger_type_label: chargerTypeLabel(c.chger_type),
+    stat: c.stat,
+    stat_label: statLabel(c.stat),
+    output: c.output,
+    method: c.method,
+    power_type: c.power_type,
+    stat_upd_dt: c.stat_upd_dt,
+    last_tsdt: c.last_tsdt,
+    last_tedt: c.last_tedt,
+    now_tsdt: c.now_tsdt,
+  }));
+
+  const payload: Record<string, unknown> = {
+    stat_id: head.stat_id,
+    stat_nm: head.stat_nm,
+    addr: head.addr,
+    addr_detail: head.addr_detail,
+    location: head.location,
+    lat: head.lat,
+    lng: head.lng,
+    use_time: head.use_time,
+    busi_id: head.busi_id,
+    busi_label: busiIdLabel(head.busi_id),
+    busi_nm: head.busi_nm,
+    busi_call: head.busi_call,
+    zcode: head.zcode,
+    zcode_label: sidoLabel(head.zcode),
+    zscode: head.zscode,
+    zscode_label: head.zscode == null ? null : sigunguLabel(head.zscode),
+    parking_free: head.parking_free,
+    note: head.note,
+    limit_yn: head.limit_yn,
+    limit_detail: head.limit_detail,
+    found: true,
+    charger_count: chargers.length,
+    chargers,
+  };
+
   return {
     content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
     structuredContent: payload,

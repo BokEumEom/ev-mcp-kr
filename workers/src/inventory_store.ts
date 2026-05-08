@@ -99,6 +99,34 @@ export class InventoryStore extends DurableObject {
   // Reads
   // ====================================================================
 
+  byStatId(statId: string): ChargerInfo[] {
+    const cursor = this.runRead(
+      `SELECT * FROM chargers WHERE stat_id = ? ORDER BY chger_id`,
+      statId,
+    );
+    return [...cursor].map((r) => rowToChargerInfo(r as ChargerRow));
+  }
+
+  byZcode(zcode: string, limit: number = DEFAULT_OPERATOR_LIMIT): ChargerInfo[] {
+    const cursor = this.runRead(
+      `SELECT * FROM chargers WHERE zcode = ?
+       ORDER BY stat_id, chger_id LIMIT ?`,
+      zcode,
+      limit,
+    );
+    return [...cursor].map((r) => rowToChargerInfo(r as ChargerRow));
+  }
+
+  byZscode(zscode: string, limit: number = DEFAULT_OPERATOR_LIMIT): ChargerInfo[] {
+    const cursor = this.runRead(
+      `SELECT * FROM chargers WHERE zscode = ?
+       ORDER BY stat_id, chger_id LIMIT ?`,
+      zscode,
+      limit,
+    );
+    return [...cursor].map((r) => rowToChargerInfo(r as ChargerRow));
+  }
+
   byBusiId(busiId: string, limit: number = DEFAULT_OPERATOR_LIMIT): ChargerInfo[] {
     const cursor = this.runRead(
       `SELECT * FROM chargers WHERE busi_id = ?
