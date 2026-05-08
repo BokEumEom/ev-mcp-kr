@@ -23,14 +23,22 @@ new_sqlite_classes = ["ChargerInventory"]
 tag = "v2"
 new_sqlite_classes = ["InventoryStore"]
 
-# Sync runs as a Cron-triggered fetch on this same worker (Stage 4).
-# Disabled until Stage 4 ships.
-# [triggers]
-# crons = ["0 18 * * *"]   # 03:00 KST = 18:00 UTC previous day
+# Cron-driven sync. Each tick processes a small batch of pages and persists
+# progress in the InventoryStore's `sync_state` table — interruptions are
+# resumed on the next tick. With pagesPerTick=1 (default) and ~250 pages
+# nationwide, every-5-minute scheduling completes a full cycle inside ~21h
+# while staying well under the free-plan CPU budget per invocation.
+#
+# Production may switch to a single daily firing once a tick can complete
+# more pages safely (paid plan extends scheduled CPU time to 30 minutes):
+#   crons = ["0 18 * * *"]   # 03:00 KST = 18:00 UTC previous day
+[triggers]
+crons = ["*/5 * * * *"]
 
 # Secrets — set via:
 #   wrangler secret put SERVICE_KEY
-#   wrangler secret put VWORLD_KEY   # optional
+#   wrangler secret put VWORLD_KEY    # optional, geocoder
+#   wrangler secret put DEV_SEED_TOKEN  # gates /internal/seed and /internal/sync
 [vars]
 LOG_LEVEL = "INFO"
 

@@ -15,6 +15,7 @@
  */
 
 import {
+  type ChargerInfo,
   type ChargerStatusRow,
   coerceStat,
   parseYyyymmddhhmmss,
@@ -81,6 +82,17 @@ export interface GetChargerStatusArgs {
   period?: number;
   zcode?: string;
   zscode?: string;
+  statId?: string;
+  chgerId?: string;
+}
+
+export interface GetChargerInfoArgs {
+  pageNo?: number;
+  numOfRows?: number;
+  zcode?: string;
+  zscode?: string;
+  kind?: string;
+  kindDetail?: string;
   statId?: string;
   chgerId?: string;
 }
@@ -152,6 +164,37 @@ export class EvChargerClient {
       });
     }
     return { header, items: items.map(toStatusRow) };
+  }
+
+  /**
+   * Fetch one page of getChargerInfo. Used by the Stage-4 sync worker.
+   * Phase 6 lesson: numOfRows=9999 trips data.go.kr's 504 gateway timeout,
+   * so the default is 2000. Caller paginates explicitly via pageNo.
+   */
+  async getChargerInfo(
+    args: GetChargerInfoArgs = {},
+  ): Promise<{ header: ResultHeader; items: ChargerInfo[] }> {
+    const { numOfRows = 2000 } = args;
+    if (numOfRows > MAX_NUM_OF_ROWS) {
+      throw new RangeError(`numOfRows must be <= ${MAX_NUM_OF_ROWS}`);
+    }
+    const payload = await this.request("getChargerInfo", {
+      pageNo: args.pageNo ?? 1,
+      numOfRows,
+      zcode: args.zcode,
+      zscode: args.zscode,
+      kind: args.kind,
+      kindDetail: args.kindDetail,
+      statId: args.statId,
+      chgerId: args.chgerId,
+    });
+    const { header, items } = unwrapItems(payload);
+    if (header.result_code !== OK_RESULT_CODE) {
+      throw new EvChargerError(`getChargerInfo error: ${header.result_msg}`, {
+        resultCode: header.result_code,
+      });
+    }
+    return { header, items: items.map(apiToChargerInfo) };
   }
 
   // --------------------------------------------------------------------
@@ -226,6 +269,7 @@ export class EvChargerClient {
 // ---------------------------------------------------------------------------
 
 interface RawItem {
+  // ChargerStatusRow fields
   busiId?: unknown;
   statId?: unknown;
   chgerId?: unknown;
@@ -234,6 +278,35 @@ interface RawItem {
   lastTsdt?: unknown;
   lastTedt?: unknown;
   nowTsdt?: unknown;
+  // Additional ChargerInfo fields
+  statNm?: unknown;
+  chgerType?: unknown;
+  addr?: unknown;
+  addrDetail?: unknown;
+  location?: unknown;
+  lat?: unknown;
+  lng?: unknown;
+  useTime?: unknown;
+  bnm?: unknown;
+  busiNm?: unknown;
+  busiCall?: unknown;
+  powerType?: unknown;
+  output?: unknown;
+  method?: unknown;
+  zcode?: unknown;
+  zscode?: unknown;
+  kind?: unknown;
+  kindDetail?: unknown;
+  parkingFree?: unknown;
+  note?: unknown;
+  limitYn?: unknown;
+  limitDetail?: unknown;
+  delYn?: unknown;
+  delDetail?: unknown;
+  trafficYn?: unknown;
+  year?: unknown;
+  floorNum?: unknown;
+  floorType?: unknown;
 }
 
 function unwrapItems(payload: UpstreamPayload): {
@@ -290,6 +363,68 @@ function toStatusRow(raw: RawItem): ChargerStatusRow {
     last_tsdt: parseYyyymmddhhmmss(raw.lastTsdt),
     last_tedt: parseYyyymmddhhmmss(raw.lastTedt),
     now_tsdt: parseYyyymmddhhmmss(raw.nowTsdt),
+  };
+}
+
+const STR = (v: unknown): string => (typeof v === "string" ? v : "");
+const OPT_STR = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() !== "" ? v : null;
+const NUM = (v: unknown): number => {
+  if (typeof v === "number") return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+};
+const YN = (v: unknown): string => {
+  if (typeof v !== "string" || v.trim() === "") return "N";
+  return v;
+};
+
+/**
+ * Map a single raw item from getChargerInfo (camelCase) to ChargerInfo
+ * (snake_case, the canonical worker shape). Mirrors the alias-driven
+ * Pydantic conversion in `ev_mcp.models.ChargerInfo`.
+ */
+function apiToChargerInfo(raw: RawItem): ChargerInfo {
+  return {
+    stat_nm: STR(raw.statNm),
+    stat_id: STR(raw.statId),
+    chger_id: STR(raw.chgerId),
+    chger_type: STR(raw.chgerType),
+    addr: STR(raw.addr),
+    addr_detail: OPT_STR(raw.addrDetail),
+    location: OPT_STR(raw.location),
+    lat: NUM(raw.lat),
+    lng: NUM(raw.lng),
+    use_time: STR(raw.useTime),
+    busi_id: STR(raw.busiId),
+    bnm: STR(raw.bnm),
+    busi_nm: STR(raw.busiNm),
+    busi_call: OPT_STR(raw.busiCall),
+    stat: coerceStat(raw.stat),
+    stat_upd_dt: parseYyyymmddhhmmss(raw.statUpdDt),
+    last_tsdt: parseYyyymmddhhmmss(raw.lastTsdt),
+    last_tedt: parseYyyymmddhhmmss(raw.lastTedt),
+    now_tsdt: parseYyyymmddhhmmss(raw.nowTsdt),
+    power_type: OPT_STR(raw.powerType),
+    output: OPT_STR(raw.output),
+    method: OPT_STR(raw.method),
+    zcode: STR(raw.zcode),
+    zscode: OPT_STR(raw.zscode),
+    kind: OPT_STR(raw.kind),
+    kind_detail: OPT_STR(raw.kindDetail),
+    parking_free: OPT_STR(raw.parkingFree),
+    note: OPT_STR(raw.note),
+    limit_yn: YN(raw.limitYn),
+    limit_detail: OPT_STR(raw.limitDetail),
+    del_yn: YN(raw.delYn),
+    del_detail: OPT_STR(raw.delDetail),
+    traffic_yn: OPT_STR(raw.trafficYn),
+    year: OPT_STR(raw.year),
+    floor_num: OPT_STR(raw.floorNum),
+    floor_type: OPT_STR(raw.floorType),
   };
 }
 
