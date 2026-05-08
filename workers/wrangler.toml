@@ -3,15 +3,25 @@ main = "src/index.ts"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Single global Durable Object for the charger inventory.
-# All read traffic ultimately routes here (DO has its own SQLite ~ up to 1GB).
+# Per-session McpAgent — agents-mcp routes each MCP session to its own DO ID.
 [[durable_objects.bindings]]
 name = "INVENTORY"
 class_name = "ChargerInventory"
 
+# Single global durable inventory (idFromName("global")) — owns the SQLite
+# database. Both ChargerInventory (per-session) and the Stage-4 sync worker
+# RPC into it.
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "InventoryStore"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["ChargerInventory"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["InventoryStore"]
 
 # Sync runs as a Cron-triggered fetch on this same worker (Stage 4).
 # Disabled until Stage 4 ships.

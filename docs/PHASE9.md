@@ -140,3 +140,5 @@ class ChargerInventory extends DurableObject {
 
 ## 변경 이력
 - 2026-05-07 Phase 9 시작, plan 작성
+- 2026-05-07 Stage 2 완료 — DDL 분리 실행 (DO SQLite 한 statement 제약 해결), `ChargerInfo` TS 타입 + zod 스키마, `list_chargers_by_operator` + `find_chargers_nearby` 툴, wrangler dev 검증.
+- 2026-05-07 아키텍처 분리 (옵션 2 채택) — `InventoryStore` 를 별도 plain DO 로 추출, `ChargerInventory` (McpAgent) 는 `idFromName("global")` stub 으로 RPC 위임. `wrangler.toml` 에 STORE 바인딩 + v2 마이그레이션 추가. 2-row seed → 새 MCP 세션에서 read 성공으로 cross-session 영속 확인.

@@ -1,14 +1,15 @@
 /**
- * ``ChargerInventory`` — combined MCP server + Durable Object.
+ * ``ChargerInventory`` — MCP server (per-session McpAgent).
  *
- * Cloudflare's `agents` package wraps `@modelcontextprotocol/sdk`'s `McpServer`
- * inside a `DurableObject`, giving us a single class that:
- *   - exposes the streamable HTTP `/mcp` endpoint via `mount()`
- *   - holds per-instance SQLite (this.sql) — same role as Phase 6 ChargerStore
- *   - registers all tools through `this.server.tool(...)`
+ * The agents framework routes every MCP session to its own DO instance, so
+ * this class is *not* where charger data lives — that's `InventoryStore`,
+ * a single global plain DO. Tool callbacks here grab a stub for that store
+ * via standard DO RPC and read through it. Stage 4's sync worker writes
+ * to the same store.
  *
- * Stage 1 ships only `lookup_codes` (static data, no SQLite). Stage 2~3 will
- * add the inventory-backed tools.
+ * Stage 1: lookup_codes (static).
+ * Stage 2: list_chargers_by_operator + find_chargers_nearby (RPC reads).
+ * Stage 3+: get_charger_status, recent_status_changes, etc.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -16,66 +17,22 @@ import { McpAgent } from "agents/mcp";
 import { z } from "zod";
 
 import { CODE_CATEGORIES, codeTables } from "./codes/index.js";
+import type { InventoryStore } from "./inventory_store.js";
+import {
+  findChargersNearby,
+  type InventoryReader,
+  listChargersByOperator,
+} from "./tools/inventory.js";
 
 export interface Env {
   SERVICE_KEY: string;
   VWORLD_KEY?: string;
   LOG_LEVEL?: string;
   INVENTORY: DurableObjectNamespace<ChargerInventory>;
+  STORE: DurableObjectNamespace<InventoryStore>;
 }
 
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS chargers (
-    stat_id      TEXT NOT NULL,
-    chger_id     TEXT NOT NULL,
-    stat_nm      TEXT NOT NULL,
-    chger_type   TEXT NOT NULL,
-    addr         TEXT NOT NULL,
-    addr_detail  TEXT,
-    location     TEXT,
-    lat          REAL NOT NULL,
-    lng          REAL NOT NULL,
-    use_time     TEXT NOT NULL,
-    busi_id      TEXT NOT NULL,
-    bnm          TEXT NOT NULL,
-    busi_nm      TEXT NOT NULL,
-    busi_call    TEXT,
-    stat         TEXT NOT NULL,
-    stat_upd_dt  TEXT,
-    last_tsdt    TEXT,
-    last_tedt    TEXT,
-    now_tsdt     TEXT,
-    power_type   TEXT,
-    output       TEXT,
-    method       TEXT,
-    zcode        TEXT NOT NULL,
-    zscode       TEXT,
-    kind         TEXT,
-    kind_detail  TEXT,
-    parking_free TEXT,
-    note         TEXT,
-    limit_yn     TEXT NOT NULL DEFAULT 'N',
-    limit_detail TEXT,
-    del_yn       TEXT NOT NULL DEFAULT 'N',
-    del_detail   TEXT,
-    traffic_yn   TEXT,
-    year         TEXT,
-    floor_num    TEXT,
-    floor_type   TEXT,
-    upserted_at  TEXT NOT NULL,
-    PRIMARY KEY (stat_id, chger_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_busi_id ON chargers(busi_id);
-CREATE INDEX IF NOT EXISTS idx_zcode   ON chargers(zcode);
-CREATE INDEX IF NOT EXISTS idx_zscode  ON chargers(zscode);
-CREATE INDEX IF NOT EXISTS idx_lat_lng ON chargers(lat, lng);
-
-CREATE TABLE IF NOT EXISTS sync_state (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-`;
+const STORE_NAME = "global";
 
 export class ChargerInventory extends McpAgent<Env> {
   override server = new McpServer({
@@ -84,35 +41,67 @@ export class ChargerInventory extends McpAgent<Env> {
   });
 
   override async init(): Promise<void> {
-    // Stage 1 ships only `lookup_codes` (static data). Stage 2 will introduce
-    // SQLite-backed tools and run SCHEMA_SQL via ctx.storage.sql.exec at that
-    // point. Keeping init() lean for now to avoid agents-mcp/SQLite friction.
+    this.registerLookupCodes();
+    this.registerListChargersByOperator();
+    this.registerFindChargersNearby();
+  }
 
-    // ---- Stage 1: lookup_codes -------------------------------------------
+  /** Get an `InventoryReader` view of the global InventoryStore DO. */
+  private inventory(): InventoryReader {
+    const id = this.env.STORE.idFromName(STORE_NAME);
+    const stub = this.env.STORE.get(id);
+    return stub as unknown as InventoryReader;
+  }
+
+  // ====================================================================
+  // Tool registrations
+  // ====================================================================
+
+  private registerLookupCodes(): void {
     this.server.tool(
       "lookup_codes",
       "공통 코드 테이블 (시도/시군구/충전기타입/상태/운영기관/구분) 조회. " +
         "category 한 개를 받아 코드→한국어 라벨 dict 반환.",
       {
-        category: z.enum(
-          CODE_CATEGORIES as unknown as [string, ...string[]],
-        ),
+        category: z.enum(CODE_CATEGORIES as unknown as [string, ...string[]]),
       },
       async ({ category }) => {
         const table = codeTables[category as keyof typeof codeTables];
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(table, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify(table, null, 2) }],
           structuredContent: table as unknown as Record<string, unknown>,
         };
       },
     );
+  }
 
-    // Stage 2~3 tools (find_chargers_nearby, list_chargers_by_operator, etc.)
-    // are registered here in subsequent stages.
+  private registerListChargersByOperator(): void {
+    this.server.tool(
+      "list_chargers_by_operator",
+      '운영기관(busiId) 별 충전기 목록. 한국어 운영기관명("환경부","에버온" 등) ' +
+        '또는 코드("ME") 입력. region 으로 시도(zcode) 추가 필터 가능.',
+      {
+        operator: z.string().min(1).describe("운영기관명 또는 busiId 코드"),
+        region: z.string().optional().describe("시도명 또는 zcode (예: 서울특별시 / 11)"),
+        limit: z.number().int().min(1).max(500).default(50),
+      },
+      async (args) => listChargersByOperator(this.inventory(), args),
+    );
+  }
+
+  private registerFindChargersNearby(): void {
+    this.server.tool(
+      "find_chargers_nearby",
+      "좌표(lat+lng) 기준 반경 내 충전기 검색. 결과는 거리순 정렬, " +
+        "available_only=true 시 stat='2'(사용가능) 만 반환.",
+      {
+        lat: z.number().describe("위도 (예: 37.4979)"),
+        lng: z.number().describe("경도 (예: 127.0276)"),
+        radius_km: z.number().min(0.1).max(20).default(2.0),
+        available_only: z.boolean().default(false),
+        limit: z.number().int().min(1).max(100).default(20),
+      },
+      async (args) => findChargersNearby(this.inventory(), args),
+    );
   }
 }
