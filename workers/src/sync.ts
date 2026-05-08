@@ -47,7 +47,12 @@ export interface SyncTickOptions {
 export interface SyncTickResult {
   startedAtPage: number;
   processedPages: number;
+  /** Rows received from upstream and considered for upsert. */
   processedRows: number;
+  /** Rows actually written to InventoryStore (changed or new). */
+  writtenRows: number;
+  /** Rows skipped because stat_upd_dt matched the stored value. */
+  skippedRows: number;
   lastCompletedPage: number;
   totalPages: number;
   /** The pageSize actually used for this tick (may differ from caller's). */
@@ -63,7 +68,9 @@ export interface SyncTickResult {
  * grab one of these once per scheduled invocation rather than per page.
  */
 export interface InventoryWriter {
-  upsertMany(rows: readonly ChargerInfo[]): Promise<number>;
+  upsertMany(
+    rows: readonly ChargerInfo[],
+  ): Promise<{ written: number; skipped: number }>;
   setSyncState(key: string, value: string): Promise<void>;
   getSyncState(key: string): Promise<string | null>;
   totalCount(): Promise<number>;
@@ -132,6 +139,8 @@ export async function runSyncTick(
     startedAtPage,
     processedPages: 0,
     processedRows: 0,
+    writtenRows: 0,
+    skippedRows: 0,
     lastCompletedPage: lastCompleted,
     totalPages,
     pageSizeUsed: pageSize,
@@ -171,8 +180,10 @@ export async function runSyncTick(
     }
 
     if (items.length > 0) {
-      await store.upsertMany(items);
+      const upsertResult = await store.upsertMany(items);
       result.processedRows += items.length;
+      result.writtenRows += upsertResult.written;
+      result.skippedRows += upsertResult.skipped;
     }
     result.processedPages += 1;
     lastCompleted = pageNo;

@@ -190,11 +190,22 @@ export class InventoryStore extends DurableObject {
   // ====================================================================
 
   /**
-   * INSERT OR REPLACE one row at a time. DO SQLite batches writes inside the
-   * input gate, so per-row calls are reasonably fast for the sync worker's
-   * page sizes. Stage 4 will tune chunking if the daily refresh needs it.
+   * Smart upsert — skip rows whose ``stat_upd_dt`` already matches what's
+   * stored. Returns counts of writes vs skips.
+   *
+   * Why: Cloudflare DO SQL on the free plan caps writes at ~1M rows/month.
+   * Our nationwide inventory is ~506k rows; a daily full re-sync (every-5min
+   * cron with pageSize=2000 → 253 pages) would exceed the cap by >15×. In practice
+   * most rows don't change between cycles — only a small fraction (~5%) has
+   * a new ``stat_upd_dt``. We pre-read each row's stored timestamp and only
+   * issue the INSERT when it differs.
+   *
+   * Reads count toward a separate, much higher quota (~5M rows/day on free),
+   * so the read-then-write pattern is cheaper overall than blind upserts.
+   * For the rare row where ``stat_upd_dt`` is null on either side, we
+   * conservatively write (avoids losing legitimate corrections).
    */
-  upsertMany(rows: readonly ChargerInfo[]): number {
+  upsertMany(rows: readonly ChargerInfo[]): { written: number; skipped: number } {
     const upsertedAt = new Date().toISOString();
     const insertSql = `INSERT OR REPLACE INTO chargers (
       stat_id, chger_id, stat_nm, chger_type, addr, addr_detail, location,
@@ -211,7 +222,25 @@ export class InventoryStore extends DurableObject {
       ?, ?, ?, ?, ?, ?,
       ?, ?, ?
     )`;
+    let written = 0;
+    let skipped = 0;
     for (const c of rows) {
+      const existing = [
+        ...this.runRead(
+          `SELECT stat_upd_dt FROM chargers WHERE stat_id = ? AND chger_id = ?`,
+          c.stat_id,
+          c.chger_id,
+        ),
+      ] as Array<{ stat_upd_dt: string | null }>;
+      const existingDt = existing[0]?.stat_upd_dt ?? null;
+
+      // Skip when both sides have a non-null timestamp and they match.
+      // Any other case (new row, null on either side, real change) → write.
+      if (existingDt != null && c.stat_upd_dt != null && existingDt === c.stat_upd_dt) {
+        skipped += 1;
+        continue;
+      }
+
       this.run(
         insertSql,
         c.stat_id,
@@ -252,8 +281,9 @@ export class InventoryStore extends DurableObject {
         c.floor_type,
         upsertedAt,
       );
+      written += 1;
     }
-    return rows.length;
+    return { written, skipped };
   }
 
   setSyncState(key: string, value: string): void {
@@ -268,9 +298,9 @@ export class InventoryStore extends DurableObject {
 
   /** Test convenience — populate without going through the sync flow. */
   seedForTesting(rows: readonly ChargerInfo[]): number {
-    const n = this.upsertMany(rows);
+    const { written } = this.upsertMany(rows);
     this.setSyncState("last_synced_at", new Date().toISOString());
-    return n;
+    return written;
   }
 
   // ====================================================================

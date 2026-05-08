@@ -21,18 +21,38 @@ function fakeEnv(opts: {
   const state = new Map<string, string>();
   const rowsUpserted: ChargerInfo[][] = [];
 
+  // Track stored rows by primary key so the fake can mimic the real
+  // smart-upsert behavior — rows with matching stat_upd_dt are skipped.
+  const stored = new Map<string, ChargerInfo>();
+  const pkOf = (r: { stat_id: string; chger_id: string }) =>
+    `${r.stat_id}|${r.chger_id}`;
+
   const fakeStore = {
     upsertMany: vi.fn(async (rows: readonly ChargerInfo[]) => {
       rowsUpserted.push([...rows]);
-      return rows.length;
+      let written = 0;
+      let skipped = 0;
+      for (const r of rows) {
+        const existing = stored.get(pkOf(r));
+        if (
+          existing != null &&
+          existing.stat_upd_dt != null &&
+          r.stat_upd_dt != null &&
+          existing.stat_upd_dt === r.stat_upd_dt
+        ) {
+          skipped += 1;
+          continue;
+        }
+        stored.set(pkOf(r), r);
+        written += 1;
+      }
+      return { written, skipped };
     }),
     setSyncState: vi.fn(async (key: string, value: string) => {
       state.set(key, value);
     }),
     getSyncState: vi.fn(async (key: string) => state.get(key) ?? null),
-    totalCount: vi.fn(async () =>
-      rowsUpserted.reduce((acc, batch) => acc + batch.length, 0),
-    ),
+    totalCount: vi.fn(async () => stored.size),
   };
 
   const STORE = {
@@ -177,6 +197,74 @@ describe("runSyncTick — cycle completion", () => {
     const r2 = await runSyncTick(env, { pageSize: 500, pagesPerTick: 1 });
     expect(r2.done).toBe(true);
     expect(state.get("page_size")).toBe("0"); // lock released
+  });
+});
+
+describe("runSyncTick — smart upsert", () => {
+  it("counts processedRows vs writtenRows separately", async () => {
+    const { env } = fakeEnv({ pages: [{ totalCount: 5000 }] });
+    const r = await runSyncTick(env, { pageSize: 500, pagesPerTick: 1 });
+    expect(r.processedRows).toBe(500);
+    // First-time write (existing row map empty) → all rows are writes.
+    expect(r.writtenRows).toBe(500);
+    expect(r.skippedRows).toBe(0);
+  });
+
+  it("skips rows whose stat_upd_dt already matches stored value", async () => {
+    // Two-tick scenario where both ticks return the same rows with the
+    // same statUpdDt. First tick writes them; second tick should skip all.
+    const { env, state } = fakeEnv({
+      pages: [
+        { totalCount: 1000, count: 500 },
+        { totalCount: 1000, count: 500 },
+      ],
+      // Override fetchImpl below — see globalThis.fetch swap.
+    });
+
+    // Replace the test fetchImpl with one that emits a stable statUpdDt.
+    const stableFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : (input as URL).toString();
+      const numOfRows = Number(new URL(url).searchParams.get("numOfRows") ?? "0");
+      const rows = Array.from({ length: numOfRows }, (_, i) => ({
+        statNm: `S${i}`,
+        statId: `STABLE${i}`,
+        chgerId: "01",
+        chgerType: "04",
+        addr: "addr",
+        lat: 37.5,
+        lng: 127.0,
+        useTime: "24h",
+        busiId: "ME",
+        bnm: "ME",
+        busiNm: "ME",
+        stat: "2",
+        statUpdDt: "20260507120000", // identical across ticks
+        zcode: "11",
+      }));
+      return new Response(
+        JSON.stringify({
+          resultCode: "00",
+          resultMsg: "ok",
+          totalCount: 1000,
+          items: { item: rows },
+        }),
+        { status: 200 },
+      );
+    });
+    (globalThis as unknown as { fetch: typeof fetch }).fetch =
+      stableFetch as unknown as typeof fetch;
+
+    // Reset so the test runs cleanly even if previous fakeEnv left state.
+    state.clear();
+
+    const r1 = await runSyncTick(env, { pageSize: 500, pagesPerTick: 1 });
+    expect(r1.writtenRows).toBe(500);
+    expect(r1.skippedRows).toBe(0);
+
+    const r2 = await runSyncTick(env, { pageSize: 500, pagesPerTick: 1 });
+    expect(r2.writtenRows).toBe(0);
+    expect(r2.skippedRows).toBe(500);
+    expect(r2.processedRows).toBe(500); // upstream still delivered them
   });
 });
 

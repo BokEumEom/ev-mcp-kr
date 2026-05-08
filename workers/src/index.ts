@@ -150,6 +150,8 @@ export default {
             `start=${result.startedAtPage}`,
             `pages=${result.processedPages}`,
             `rows=${result.processedRows}`,
+            `written=${result.writtenRows}`,
+            `skipped=${result.skippedRows}`,
             `lcp=${result.lastCompletedPage}/${result.totalPages}`,
             result.done ? "done" : "in-progress",
             result.errored ? `error=${result.errored}` : "",

@@ -191,6 +191,8 @@ wrangler tail | grep -c "<SERVICE_KEY 처음 14자>"
 - 2026-05-08 Stage 4 — getChargerInfo + apiToChargerInfo, 페이지 재개 가능한 sync 상태 머신, scheduled 핸들러 (`*/5 * * * *`), /internal/sync + /internal/sync-status. 실 데이터 sync 검증
 - 2026-05-08 Stage 5 — /internal/* 토큰 게이트 강화 (`DEV_SEED_TOKEN` 미설정→503), workers/DEPLOY.md, wrangler deploy --dry-run 통과, production 배포 (사용자), pageSize lock 핫픽스 + /internal/sync-reset
 - 2026-05-08 Phase 9 보고서 정리 (이 문서)
+- 2026-05-08 vitest 셋업 + 61 테스트 (커버리지 92.79%) — pure 로직 회귀 방어망. 부산물: `resolve*("")` 가 `name.includes("")` 때문에 첫 entry 반환하던 버그 fix
+- 2026-05-08 운영 핫픽스 — Cloudflare DO SQL 무료 한도 (rows-written ~1M/월) 초과로 sync 실패. `upsertMany` 를 stat_upd_dt 비교 기반 smart upsert 로 전환 — 변경된 row 만 write, 나머지 skip. `SyncTickResult` 에 `writtenRows`/`skippedRows` 추가. 테스트 +2 (skip 경로 검증)
 
 ## 다음 단계 (Phase 10 후보)
 
