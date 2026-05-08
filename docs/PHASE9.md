@@ -1,7 +1,7 @@
 # Phase 9 — TypeScript Cloudflare Workers 포팅
 
 **시작:** 2026-05-07
-**상태:** 진행 중 (Stage 1)
+**상태:** Stage 4 완료, Stage 5 코드 준비 완료 — 사용자 Cloudflare 계정에서 `wrangler deploy` 실행 + Claude.ai Custom Connector 등록 단계 대기 중. 배포 runbook: [`workers/DEPLOY.md`](../workers/DEPLOY.md).
 **범위:** Python (FastMCP) → TypeScript (Workers + Durable Objects + agents-mcp). 무료 / 영원히 떠 있음 / 자동 sync (Cron Trigger).
 
 ## Context — 왜 포팅?
@@ -145,3 +145,26 @@ class ChargerInventory extends DurableObject {
 - 2026-05-08 Stage 3a — `search_chargers_by_region` (region+district), `get_station_details` (stat_id) 추가. `byStatId/byZcode/byZscode` DO 메서드 + 5-tool 검증.
 - 2026-05-08 Stage 3b — `EvChargerClient` (workers/src/client.ts) data.go.kr 라이브 클라이언트 (retry + redact + AbortController), `get_charger_status` + `recent_status_changes` (60s 인메모리 캐시) 추가. `fetch.bind(globalThis)` 로 Workers Illegal-invocation 회피. 실 API 호출 검증 (cache hit 11ms, 키 누출 없음). 7개 툴 모두 라이브.
 - 2026-05-08 Stage 4 — `getChargerInfo` + `apiToChargerInfo` 매퍼 추가, 페이지·재개 가능한 sync 상태 머신 (`workers/src/sync.ts`) 구현. `scheduled` 핸들러를 같은 worker 에 추가 (별도 worker 대신 운영 단순화). 매분이 아닌 5분 cron (`*/5 * * * *`) — `pageSize=2000` 기준 253 페이지 ≈ 21시간 풀사이클. `/internal/sync` (수동 트리거) + `/internal/sync-status` (진단) 추가. 검증: tick#1 → page 1 (500 rows), tick#2 → page 2 (resume, +500 rows), MCP 툴이 실 sync 데이터(`ME174013` 낙성대동주민센터) 즉시 반환.
+- 2026-05-08 Stage 5 (코드 준비) — `/internal/*` 토큰 게이트 강화: `DEV_SEED_TOKEN` 미설정 시 503 (안전 기본값). `/internal/sync-status` 도 게이트에 포함. `wrangler deploy --dry-run` 통과 (번들 1.65 MiB raw / **301.60 KiB gzipped**, free-tier 1MB 한도 안). `workers/DEPLOY.md` 작성 — 사용자 Cloudflare 계정 액션 단계별 정리.
+
+## 최종 상태 (Phase 9 마무리)
+
+### 코드 ✓
+- 7 MCP 툴 모두 Workers 에 포팅, 라이브 검증 완료
+- 두-DO 아키텍처 (per-session McpAgent + global InventoryStore)
+- data.go.kr 라이브 클라이언트 (retry/redact/timeout)
+- Cron-driven 재개 가능한 sync 상태 머신
+- 토큰 게이트된 admin 엔드포인트 3개
+
+### 사용자 액션 대기
+- `wrangler login` (인터랙티브 OAuth)
+- `wrangler secret put SERVICE_KEY` + `wrangler secret put DEV_SEED_TOKEN`
+- `wrangler deploy`
+- Claude.ai Settings → Connectors → Add custom connector → `https://ev-mcp.<account>.workers.dev/mcp`
+- 자연어 스모크 테스트 3종 (DEPLOY.md §6)
+
+### 알려진 한계 / 후속 검토
+- `find_chargers_nearby` 가 lat/lng-only — Phase 5 의 address 기반 질의는 동작하지 않음. VWorld 지오코더 통합은 Phase 10+ 결정.
+- `recent_status_changes` 첫 호출 5–30s — upstream 지연. 캐시는 ~10–50ms.
+- Free plan scheduled CPU 30s 제약 → `pagesPerTick=1`. paid plan 은 `crons = ["0 18 * * *"]` 단일 실행 가능.
+- `/internal/*` 는 토큰만으로 보호. 실제 운영에선 Cloudflare Access 또는 IP allow-list 추가 권장.

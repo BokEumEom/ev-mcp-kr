@@ -32,8 +32,28 @@ const handler = ChargerInventory.serve("/mcp", {
   },
 });
 
+/**
+ * Gate `/internal/*` routes behind a shared admin token. Returns a Response
+ * to send back when the request is denied, or `null` when it should proceed.
+ *
+ * - If `DEV_SEED_TOKEN` is unset (production deploy without `wrangler secret
+ *   put DEV_SEED_TOKEN`), the entire admin surface returns 503. This makes
+ *   the safe default for an undocumented deploy "no admin access" rather
+ *   than "everyone with the string 'dev' has admin access".
+ * - If set, the request must present a matching header. Mismatches → 403.
+ */
 function checkDevToken(request: Request, env: Env): Response | null {
-  const expected = (env as Env & { DEV_SEED_TOKEN?: string }).DEV_SEED_TOKEN ?? "dev";
+  const expected = (env as Env & { DEV_SEED_TOKEN?: string }).DEV_SEED_TOKEN;
+  if (!expected) {
+    return new Response(
+      JSON.stringify({
+        error: "internal endpoints not configured",
+        hint: "set DEV_SEED_TOKEN via `wrangler secret put DEV_SEED_TOKEN` " +
+          "(or .dev.vars locally) to enable /internal/* routes",
+      }),
+      { status: 503, headers: { "content-type": "application/json" } },
+    );
+  }
   if (request.headers.get(DEV_SEED_HEADER) !== expected) {
     return new Response("forbidden", { status: 403 });
   }
@@ -88,6 +108,8 @@ export default {
     }
 
     if (url.pathname === "/internal/sync-status" && request.method === "GET") {
+      const blocked = checkDevToken(request, env);
+      if (blocked) return blocked;
       const status = await getSyncStatus(env);
       return new Response(JSON.stringify(status, null, 2), {
         headers: { "content-type": "application/json" },
