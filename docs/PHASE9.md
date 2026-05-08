@@ -142,3 +142,5 @@ class ChargerInventory extends DurableObject {
 - 2026-05-07 Phase 9 시작, plan 작성
 - 2026-05-07 Stage 2 완료 — DDL 분리 실행 (DO SQLite 한 statement 제약 해결), `ChargerInfo` TS 타입 + zod 스키마, `list_chargers_by_operator` + `find_chargers_nearby` 툴, wrangler dev 검증.
 - 2026-05-07 아키텍처 분리 (옵션 2 채택) — `InventoryStore` 를 별도 plain DO 로 추출, `ChargerInventory` (McpAgent) 는 `idFromName("global")` stub 으로 RPC 위임. `wrangler.toml` 에 STORE 바인딩 + v2 마이그레이션 추가. 2-row seed → 새 MCP 세션에서 read 성공으로 cross-session 영속 확인.
+- 2026-05-08 Stage 3a — `search_chargers_by_region` (region+district), `get_station_details` (stat_id) 추가. `byStatId/byZcode/byZscode` DO 메서드 + 5-tool 검증.
+- 2026-05-08 Stage 3b — `EvChargerClient` (workers/src/client.ts) data.go.kr 라이브 클라이언트 (retry + redact + AbortController), `get_charger_status` + `recent_status_changes` (60s 인메모리 캐시) 추가. `fetch.bind(globalThis)` 로 Workers Illegal-invocation 회피. 실 API 호출 검증 (cache hit 11ms, 키 누출 없음). 7개 툴 모두 라이브.

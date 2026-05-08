@@ -30,6 +30,30 @@ export const CHARGER_STATUS_CODES = [
 
 export type ChargerStatusCode = (typeof CHARGER_STATUS_CODES)[number];
 
+/**
+ * Single row from `getChargerStatus`. Mirrors :class:`ev_mcp.models.ChargerStatusRow`.
+ * Datetimes are returned as ISO strings (or null) — see `parseYyyymmddhhmmss`.
+ */
+export interface ChargerStatusRow {
+  busi_id: string;
+  stat_id: string;
+  chger_id: string;
+  stat: ChargerStatusCode;
+  stat_upd_dt: string | null;
+  last_tsdt: string | null;
+  last_tedt: string | null;
+  now_tsdt: string | null;
+}
+
+/** data.go.kr response header (resultCode/resultMsg/totals). */
+export interface ResultHeader {
+  result_code: string;
+  result_msg: string;
+  page_no: number | null;
+  num_of_rows: number | null;
+  total_count: number | null;
+}
+
 const KNOWN_STAT_CODES = new Set<string>(CHARGER_STATUS_CODES);
 
 /**

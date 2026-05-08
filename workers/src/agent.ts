@@ -16,6 +16,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { z } from "zod";
 
+import { EvChargerClient } from "./client.js";
 import { CODE_CATEGORIES, codeTables } from "./codes/index.js";
 import type { InventoryStore } from "./inventory_store.js";
 import {
@@ -25,6 +26,11 @@ import {
   listChargersByOperator,
   searchChargersByRegion,
 } from "./tools/inventory.js";
+import {
+  getChargerStatus,
+  RecentChangesCache,
+  recentStatusChanges,
+} from "./tools/status.js";
 
 export interface Env {
   SERVICE_KEY: string;
@@ -42,12 +48,19 @@ export class ChargerInventory extends McpAgent<Env> {
     version: "0.1.0",
   });
 
+  // Per-DO instance state — not durable, recreated on every wake. Acceptable
+  // because the cache is a soft optimization on a 60s window.
+  private liveClient: EvChargerClient | null = null;
+  private readonly recentCache = new RecentChangesCache();
+
   override async init(): Promise<void> {
     this.registerLookupCodes();
     this.registerListChargersByOperator();
     this.registerFindChargersNearby();
     this.registerSearchChargersByRegion();
     this.registerGetStationDetails();
+    this.registerGetChargerStatus();
+    this.registerRecentStatusChanges();
   }
 
   /** Get an `InventoryReader` view of the global InventoryStore DO. */
@@ -55,6 +68,20 @@ export class ChargerInventory extends McpAgent<Env> {
     const id = this.env.STORE.idFromName(STORE_NAME);
     const stub = this.env.STORE.get(id);
     return stub as unknown as InventoryReader;
+  }
+
+  /** Lazy live-fetch client — instantiated on first use. */
+  private client(): EvChargerClient {
+    if (this.liveClient == null) {
+      const key = this.env.SERVICE_KEY;
+      if (!key) {
+        throw new Error(
+          "SERVICE_KEY 가 설정되지 않았습니다. wrangler secret put SERVICE_KEY 또는 .dev.vars 파일에 추가하세요.",
+        );
+      }
+      this.liveClient = new EvChargerClient({ serviceKey: key });
+    }
+    return this.liveClient;
   }
 
   // ====================================================================
@@ -137,6 +164,39 @@ export class ChargerInventory extends McpAgent<Env> {
         stat_id: z.string().min(1).describe("충전소 ID (예: ME000001)"),
       },
       async (args) => getStationDetails(this.inventory(), args),
+    );
+  }
+
+  private registerGetChargerStatus(): void {
+    this.server.tool(
+      "get_charger_status",
+      "특정 충전기의 실시간 상태(stat). data.go.kr 의 getChargerStatus 를 직접 호출해 " +
+        "최신 값을 가져오므로 일 1회 sync 보다 신선한 값. stat_id+chger_id 둘 다 필요.",
+      {
+        stat_id: z.string().min(1).describe("충전소 ID"),
+        chger_id: z.string().min(1).describe("충전기 ID (예: 01)"),
+      },
+      async (args) => getChargerStatus(this.client(), args),
+    );
+  }
+
+  private registerRecentStatusChanges(): void {
+    this.server.tool(
+      "recent_status_changes",
+      "최근 N분(period, 1~10) 안에 상태가 바뀐 충전기를 stat_upd_dt 내림차순으로 조회. " +
+        "응답은 60초 메모리 캐시. zcode 로 시도 필터 가능.",
+      {
+        period: z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .default(10)
+          .describe("최근 몇 분 (1~10, 기본 10)"),
+        limit: z.number().int().min(1).max(200).default(20),
+        zcode: z.string().optional().describe("시도 코드 (예: 11=서울)"),
+      },
+      async (args) => recentStatusChanges(this.client(), this.recentCache, args),
     );
   }
 }
