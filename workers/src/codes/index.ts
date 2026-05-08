@@ -62,6 +62,7 @@ export const kindDetailLabel = (code: string): string => codeTables.kind_detail[
  * Mirrors :func:`ev_mcp.codes_lookup.resolve_sido`.
  */
 export function resolveSido(query: string): string | null {
+  if (!query) return null;
   if (query in codeTables.sido) return query;
   for (const [code, name] of Object.entries(codeTables.sido)) {
     if (name === query || name.startsWith(query) || name.includes(query)) {
@@ -75,6 +76,7 @@ export function resolveSido(query: string): string | null {
  * Map ``"강남구" | "11680"`` to a zscode. Returns null on ambiguity / unknown.
  */
 export function resolveSigungu(query: string): string | null {
+  if (!query) return null;
   if (query in codeTables.sigungu) return query;
   const matches = Object.entries(codeTables.sigungu)
     .filter(([_, name]) => name === query)
@@ -88,6 +90,7 @@ export function resolveSigungu(query: string): string | null {
  * Mirrors :func:`ev_mcp.codes_lookup.resolve_busi_id`.
  */
 export function resolveBusiId(query: string): string | null {
+  if (!query) return null;
   if (query in codeTables.busi_id) return query;
   for (const [code, name] of Object.entries(codeTables.busi_id)) {
     if (name === query || name.includes(query)) {
