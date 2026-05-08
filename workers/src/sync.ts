@@ -50,6 +50,10 @@ export interface SyncTickResult {
   processedRows: number;
   lastCompletedPage: number;
   totalPages: number;
+  /** The pageSize actually used for this tick (may differ from caller's). */
+  pageSizeUsed: number;
+  /** True when the caller's pageSize was overridden by the locked cycle pageSize. */
+  pageSizeOverridden: boolean;
   done: boolean;
   errored?: string;
 }
@@ -79,12 +83,26 @@ function parseIntOrZero(v: string | null): number {
 /**
  * Run one tick of the sync. Returns a structured summary so the caller
  * (scheduled handler / manual endpoint) can log progress.
+ *
+ * pageSize lock
+ * -------------
+ * `pageSize` is locked for the duration of a cycle. The first tick of a
+ * fresh cycle records its `pageSize` in `sync_state.page_size`; subsequent
+ * ticks read that value and ignore the caller's `opts.pageSize` if they
+ * differ (the result reports `pageSizeOverridden: true` in that case).
+ *
+ * Why: data.go.kr uses page-based pagination (`pageNo` × `numOfRows`).
+ * Mixing different `numOfRows` mid-cycle decouples the persisted
+ * `last_completed_page` from `total_pages` and from the actual rows seen,
+ * which can either skip rows (pageSize larger than the locked one) or
+ * end the cycle early (smaller). The lock is released when the cycle
+ * completes, so the next cycle is free to choose a different size.
  */
 export async function runSyncTick(
   env: SyncEnv,
   opts: SyncTickOptions = {},
 ): Promise<SyncTickResult> {
-  const pageSize = opts.pageSize ?? SYNC_DEFAULT_PAGE_SIZE;
+  const requestedPageSize = opts.pageSize ?? SYNC_DEFAULT_PAGE_SIZE;
   const pagesPerTick = opts.pagesPerTick ?? SYNC_DEFAULT_PAGES_PER_TICK;
 
   const store = inventoryWriter(env);
@@ -92,6 +110,22 @@ export async function runSyncTick(
 
   let lastCompleted = parseIntOrZero(await store.getSyncState("last_completed_page"));
   let totalPages = parseIntOrZero(await store.getSyncState("total_pages"));
+  const lockedPageSize = parseIntOrZero(await store.getSyncState("page_size"));
+
+  // Reconcile caller's pageSize against the cycle's locked value. A non-zero
+  // lockedPageSize means we're mid-cycle and must keep using it.
+  let pageSize = requestedPageSize;
+  let pageSizeOverridden = false;
+  if (lockedPageSize > 0 && lockedPageSize !== requestedPageSize) {
+    console.log(
+      "[sync.tick] pageSize override",
+      `requested=${requestedPageSize}`,
+      `locked=${lockedPageSize}`,
+      `(cycle in progress, last_completed_page=${lastCompleted})`,
+    );
+    pageSize = lockedPageSize;
+    pageSizeOverridden = true;
+  }
 
   const startedAtPage = lastCompleted + 1;
   const result: SyncTickResult = {
@@ -100,6 +134,8 @@ export async function runSyncTick(
     processedRows: 0,
     lastCompletedPage: lastCompleted,
     totalPages,
+    pageSizeUsed: pageSize,
+    pageSizeOverridden,
     done: false,
   };
 
@@ -117,7 +153,11 @@ export async function runSyncTick(
       break;
     }
 
-    // First tick of a fresh cycle: derive total_pages and stamp cycle start.
+    // First tick of a fresh cycle: lock pageSize, derive total_pages, and
+    // stamp cycle start.
+    if (lockedPageSize === 0 && i === 0 && lastCompleted === 0) {
+      await store.setSyncState("page_size", String(pageSize));
+    }
     if (totalPages === 0) {
       const total = header.total_count ?? 0;
       if (total > 0) {
@@ -139,13 +179,15 @@ export async function runSyncTick(
     await store.setSyncState("last_completed_page", String(lastCompleted));
     result.lastCompletedPage = lastCompleted;
 
-    // Cycle-complete conditions: short page or hit the computed end.
+    // Cycle-complete conditions: short page (real EOF signal from upstream)
+    // or hit the computed end (predicted EOF — guards against bugs).
     const reachedEnd = totalPages > 0 && lastCompleted >= totalPages;
     if (items.length < pageSize || reachedEnd) {
       await store.setSyncState("last_synced_at", new Date().toISOString());
-      // Reset so the next tick begins a new cycle.
+      // Release the lock so the next cycle can choose a different pageSize.
       await store.setSyncState("last_completed_page", "0");
       await store.setSyncState("total_pages", "0");
+      await store.setSyncState("page_size", "0");
       result.done = true;
       result.lastCompletedPage = 0;
       break;
@@ -156,11 +198,28 @@ export async function runSyncTick(
 }
 
 /**
+ * Reset cycle state without touching the inventory rows. Useful when the
+ * persisted state has been desynchronized from reality (e.g., stored
+ * `page_size` mismatched the active cycle in older deploys). The next tick
+ * starts a fresh cycle from page 1; existing rows are upserted in place
+ * with new `upserted_at` timestamps as the new pages overwrite them.
+ */
+export async function resetSyncCycle(env: SyncEnv): Promise<void> {
+  const store = inventoryWriter(env);
+  await store.setSyncState("last_completed_page", "0");
+  await store.setSyncState("total_pages", "0");
+  await store.setSyncState("page_size", "0");
+  await store.setSyncState("cycle_started_at", "");
+}
+
+/**
  * Read-only snapshot of sync progress for diagnostics endpoints.
  */
 export interface SyncStatus {
   last_completed_page: number;
   total_pages: number;
+  /** pageSize locked for the current cycle; 0 between cycles. */
+  page_size: number;
   cycle_started_at: string | null;
   last_synced_at: string | null;
   total_rows_in_store: number;
@@ -168,9 +227,10 @@ export interface SyncStatus {
 
 export async function getSyncStatus(env: SyncEnv): Promise<SyncStatus> {
   const store = inventoryWriter(env);
-  const [lcp, tp, csa, lsa, total] = await Promise.all([
+  const [lcp, tp, ps, csa, lsa, total] = await Promise.all([
     store.getSyncState("last_completed_page"),
     store.getSyncState("total_pages"),
+    store.getSyncState("page_size"),
     store.getSyncState("cycle_started_at"),
     store.getSyncState("last_synced_at"),
     store.totalCount(),
@@ -178,8 +238,9 @@ export async function getSyncStatus(env: SyncEnv): Promise<SyncStatus> {
   return {
     last_completed_page: parseIntOrZero(lcp),
     total_pages: parseIntOrZero(tp),
-    cycle_started_at: csa,
-    last_synced_at: lsa,
+    page_size: parseIntOrZero(ps),
+    cycle_started_at: csa == null || csa === "" ? null : csa,
+    last_synced_at: lsa == null || lsa === "" ? null : lsa,
     total_rows_in_store: total,
   };
 }

@@ -15,7 +15,7 @@
 
 import { ChargerInventory, type Env } from "./agent.js";
 import { InventoryStore } from "./inventory_store.js";
-import { getSyncStatus, runSyncTick } from "./sync.js";
+import { getSyncStatus, resetSyncCycle, runSyncTick } from "./sync.js";
 import type { ChargerInfo } from "./types.js";
 
 export { ChargerInventory, InventoryStore };
@@ -112,6 +112,19 @@ export default {
       if (blocked) return blocked;
       const status = await getSyncStatus(env);
       return new Response(JSON.stringify(status, null, 2), {
+        headers: { "content-type": "application/json" },
+      });
+    }
+
+    // Wipe the cycle state (last_completed_page / total_pages / page_size)
+    // without touching inventory rows. Use after deploys that change the
+    // sync-state schema or to recover from a corrupted mid-cycle state.
+    if (url.pathname === "/internal/sync-reset" && request.method === "POST") {
+      const blocked = checkDevToken(request, env);
+      if (blocked) return blocked;
+      await resetSyncCycle(env);
+      const status = await getSyncStatus(env);
+      return new Response(JSON.stringify({ reset: true, status }, null, 2), {
         headers: { "content-type": "application/json" },
       });
     }

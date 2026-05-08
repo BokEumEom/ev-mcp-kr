@@ -146,6 +146,7 @@ class ChargerInventory extends DurableObject {
 - 2026-05-08 Stage 3b — `EvChargerClient` (workers/src/client.ts) data.go.kr 라이브 클라이언트 (retry + redact + AbortController), `get_charger_status` + `recent_status_changes` (60s 인메모리 캐시) 추가. `fetch.bind(globalThis)` 로 Workers Illegal-invocation 회피. 실 API 호출 검증 (cache hit 11ms, 키 누출 없음). 7개 툴 모두 라이브.
 - 2026-05-08 Stage 4 — `getChargerInfo` + `apiToChargerInfo` 매퍼 추가, 페이지·재개 가능한 sync 상태 머신 (`workers/src/sync.ts`) 구현. `scheduled` 핸들러를 같은 worker 에 추가 (별도 worker 대신 운영 단순화). 매분이 아닌 5분 cron (`*/5 * * * *`) — `pageSize=2000` 기준 253 페이지 ≈ 21시간 풀사이클. `/internal/sync` (수동 트리거) + `/internal/sync-status` (진단) 추가. 검증: tick#1 → page 1 (500 rows), tick#2 → page 2 (resume, +500 rows), MCP 툴이 실 sync 데이터(`ME174013` 낙성대동주민센터) 즉시 반환.
 - 2026-05-08 Stage 5 (코드 준비) — `/internal/*` 토큰 게이트 강화: `DEV_SEED_TOKEN` 미설정 시 503 (안전 기본값). `/internal/sync-status` 도 게이트에 포함. `wrangler deploy --dry-run` 통과 (번들 1.65 MiB raw / **301.60 KiB gzipped**, free-tier 1MB 한도 안). `workers/DEPLOY.md` 작성 — 사용자 Cloudflare 계정 액션 단계별 정리.
+- 2026-05-08 Stage 5 (post-deploy 핫픽스) — pageSize lock 추가. cycle 첫 tick 의 pageSize 가 `sync_state.page_size` 에 저장되며, 이후 tick 에서 caller 가 다른 pageSize 를 줘도 lock 값으로 override (결과의 `pageSizeOverridden:true` + 로그 경고). cycle 종료 시 자동 해제. `/internal/sync-reset` 엔드포인트 추가 — 인벤토리 행은 보존하고 cycle 메타만 초기화. 운영 중 pageSize 혼용으로 인한 totalPages 디싱크 방지.
 
 ## 최종 상태 (Phase 9 마무리)
 
