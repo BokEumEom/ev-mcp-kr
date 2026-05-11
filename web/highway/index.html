@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>고속도로 휴게소 충전 인프라 — ev-mcp</title>
+    <meta
+      name="description"
+      content="한국 고속도로 휴게소 전용 EV 충전소 분석. DC 99.2%, 평균 196.8kW — 완전히 다른 인프라."
+    />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <div>
+            <nav class="breadcrumb">
+              <a href="../">← 전체 대시보드</a>
+            </nav>
+            <h1>고속도로 휴게소 충전 인프라</h1>
+            <p class="subtitle">
+              <code>kind_detail = 'C001'</code> · DC 99.2%, 평균 196.8 kW —
+              완전히 다른 인프라
+            </p>
+          </div>
+          <div class="header-actions">
+            <div class="nav-group">
+              <a href="./map.html" class="nav-link">지도</a>
+              <a href="./operators.html" class="nav-link">운영자</a>
+              <a href="./activity.html" class="nav-link">활성도</a>
+              <a href="./route.html" class="nav-link">노선</a>
+            </div>
+            <div class="badge highway" id="header-badge" hidden>
+              <span class="badge-dot"></span>
+              <span id="header-snapshot">…</span>
+            </div>
+          </div>
+        </div>
+        <div class="meta">
+          <span id="snapshot-date">로딩 중…</span>
+          <span class="dot">·</span>
+          <span id="row-count">—</span>
+          <span class="dot">·</span>
+          <span class="powered">
+            DuckDB-WASM <span id="duckdb-version">…</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="status" class="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="status-text">DuckDB-WASM 초기화 중…</span>
+      </section>
+
+      <!-- ───────── KPI 6개 ───────── -->
+      <section class="kpi-grid" id="kpi-grid" hidden>
+        <div class="kpi">
+          <div class="kpi-label">총 충전기</div>
+          <div class="kpi-value" id="kpi-total">—</div>
+          <div class="kpi-sub" id="kpi-total-sub">고속도로 휴게소</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">휴게소 수</div>
+          <div class="kpi-value" id="kpi-stations">—</div>
+          <div class="kpi-sub">개 휴게소</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">운영자 수</div>
+          <div class="kpi-value" id="kpi-operators">—</div>
+          <div class="kpi-sub" id="kpi-operators-sub">개 사업자</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">평균 출력</div>
+          <div class="kpi-value" id="kpi-avg-output">—</div>
+          <div class="kpi-sub" id="kpi-avg-output-sub">kW · 일반 대비 12배</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">초급속(200+ kW)</div>
+          <div class="kpi-value" id="kpi-200plus">—</div>
+          <div class="kpi-sub" id="kpi-200plus-sub">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">즉시 사용 가능</div>
+          <div class="kpi-value" id="kpi-available">—</div>
+          <div class="kpi-sub" id="kpi-available-pct">—</div>
+        </div>
+      </section>
+
+      <!-- ───────── 자동 인사이트 카드 ───────── -->
+      <section class="insights" id="insights" hidden>
+        <h2 class="section-title">고속도로 휴게소 vs 전체 — 핵심 차이</h2>
+        <div class="insight-grid" id="insight-grid"></div>
+      </section>
+
+      <!-- ───────── 차트 4개 ───────── -->
+      <h2 class="section-title" id="ops-title" hidden>운영자 분포</h2>
+
+      <section class="chart-card" id="card-operators" hidden>
+        <div class="chart-header">
+          <h3>운영자별 고속도로 충전기 수 + DC 비율</h3>
+          <p class="chart-desc">
+            환경부(ME) · SK시그넷(SG) · 브라이트에너지(BE) · SK일렉링크(ST) 가
+            상위. 거의 모든 운영자가 DC 100% — 일반 인프라와 다른 시장 구조.
+          </p>
+        </div>
+        <div class="chart-wrap chart-wrap-tall">
+          <canvas id="chart-operators"></canvas>
+        </div>
+      </section>
+
+      <h2 class="section-title" id="dist-title" hidden>지리 + 출력 분포</h2>
+
+      <div class="chart-grid">
+        <section class="chart-card" id="card-sido" hidden>
+          <div class="chart-header">
+            <h3>시도별 휴게소 충전기 분포</h3>
+            <p class="chart-desc">
+              경기 (서울 → 지방 진입 관문) · 경북 (영동/중부 노선) · 충남 (서해안)
+              상위.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-sido"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card" id="card-output" hidden>
+          <div class="chart-header">
+            <h3>출력(kW) 분포</h3>
+            <p class="chart-desc">
+              200+ kW 초급속이 ~29%. 평균 196.8 kW — 일반 충전기(16.8) 의 12배.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-output"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <h2 class="section-title" id="station-title" hidden>휴게소 ranking</h2>
+
+      <section class="chart-card" id="card-stations" hidden>
+        <div class="chart-header">
+          <h3>충전기가 가장 많은 휴게소 top 12</h3>
+          <p class="chart-desc">
+            단일 휴게소 기준 (<code>stat_id</code> GROUP BY). 노선의 핵심
+            충전 거점.
+          </p>
+        </div>
+        <div class="chart-wrap chart-wrap-tall">
+          <canvas id="chart-stations"></canvas>
+        </div>
+      </section>
+
+      <section id="error-panel" class="error-panel" hidden>
+        <h3>로드 실패</h3>
+        <pre id="error-message"></pre>
+        <p>
+          프로젝트 <strong>루트</strong>에서
+          <code>python -m http.server 8000</code> 실행 후
+          <code>http://localhost:8000/web/highway/</code> 에 접속하세요.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>
+          데이터: 공공데이터포털 ·
+          <a
+            href="https://www.data.go.kr/data/15076352/openapi.do"
+            target="_blank"
+            rel="noopener"
+          >한국환경공단 EV 충전소 OpenAPI v1.23</a>
+          · 필터:
+          <code>kind_detail='C001'</code>
+        </div>
+        <div>
+          ev-mcp Phase 10 (ADR-001) · DuckDB-WASM + Chart.js ·
+          <a href="../">전체 대시보드</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

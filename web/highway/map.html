@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>고속도로 휴게소 충전소 지도 — ev-mcp</title>
+    <meta
+      name="description"
+      content="한국 고속도로 휴게소 EV 충전소 622곳 지도 시각화. Leaflet + DuckDB-WASM."
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <div>
+            <nav class="breadcrumb">
+              <a href="../">← 전체 대시보드</a>
+              <span class="breadcrumb-sep">/</span>
+              <a href="./">고속도로 차트</a>
+            </nav>
+            <h1>고속도로 휴게소 충전소 지도</h1>
+            <p class="subtitle">
+              <code>kind_detail = 'C001'</code> · 622곳 휴게소 · 마커 크기 = 충전기 수, 색상 = 평균 출력
+            </p>
+          </div>
+          <div class="header-actions">
+            <div class="nav-group">
+              <a href="./" class="nav-link">차트</a>
+              <a href="./operators.html" class="nav-link">운영자</a>
+              <a href="./activity.html" class="nav-link">활성도</a>
+              <a href="./route.html" class="nav-link">노선</a>
+            </div>
+            <div class="badge highway" id="header-badge" hidden>
+              <span class="badge-dot"></span>
+              <span id="header-snapshot">…</span>
+            </div>
+          </div>
+        </div>
+        <div class="meta">
+          <span id="snapshot-date">로딩 중…</span>
+          <span class="dot">·</span>
+          <span id="row-count">—</span>
+          <span class="dot">·</span>
+          <span class="powered">
+            Leaflet + DuckDB-WASM <span id="duckdb-version">…</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main class="map-main">
+      <section id="status" class="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="status-text">DuckDB-WASM 초기화 중…</span>
+      </section>
+
+      <!-- ───────── 컨트롤 + KPI 미니 ───────── -->
+      <section class="map-controls" id="map-controls" hidden>
+        <div class="map-stats">
+          <div class="stat-item">
+            <span class="stat-label">표시 중</span>
+            <span class="stat-value" id="visible-count">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">초급속(200+ kW)</span>
+            <span class="stat-value" id="visible-200plus">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">평균 출력</span>
+            <span class="stat-value" id="visible-avg-kw">—</span>
+          </div>
+        </div>
+        <div class="map-filter">
+          <label for="highway-select">노선 필터:</label>
+          <select id="highway-select">
+            <option value="">전체</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- ───────── 지도 + 범례 ───────── -->
+      <section class="map-wrap" id="map-wrap" hidden>
+        <div id="map"></div>
+
+        <aside class="map-legend">
+          <h4>마커 색상 (평균 출력)</h4>
+          <div class="legend-row">
+            <span class="legend-swatch swatch-fast"></span>
+            <span>200+ kW · 초급속</span>
+          </div>
+          <div class="legend-row">
+            <span class="legend-swatch swatch-mid"></span>
+            <span>100~200 kW</span>
+          </div>
+          <div class="legend-row">
+            <span class="legend-swatch swatch-slow"></span>
+            <span>50~100 kW</span>
+          </div>
+          <div class="legend-row">
+            <span class="legend-swatch swatch-low"></span>
+            <span>≤50 kW · AC 혼합</span>
+          </div>
+
+          <h4 style="margin-top: 14px">마커 크기</h4>
+          <div class="legend-row legend-size">
+            <span class="size-dot size-sm"></span> 1~3대
+            <span class="size-dot size-md"></span> 4~10대
+            <span class="size-dot size-lg"></span> 10대+
+          </div>
+        </aside>
+      </section>
+
+      <section id="error-panel" class="error-panel" hidden>
+        <h3>로드 실패</h3>
+        <pre id="error-message"></pre>
+        <p>
+          프로젝트 <strong>루트</strong>에서
+          <code>python -m http.server 8000</code> 실행 후
+          <code>http://localhost:8000/web/highway/map.html</code> 접속.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>
+          지도: © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a>
+          · 데이터: <a href="https://www.data.go.kr/data/15076352/openapi.do" target="_blank" rel="noopener">한국환경공단 OpenAPI</a>
+        </div>
+        <div>
+          ev-mcp Phase 10 · DuckDB-WASM + Leaflet ·
+          <a href="../">전체</a> · <a href="./">차트</a>
+        </div>
+      </div>
+    </footer>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin="anonymous"
+    ></script>
+    <script type="module" src="./map.js"></script>
+  </body>
+</html>

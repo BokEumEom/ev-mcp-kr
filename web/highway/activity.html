@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>고속도로 충전 활성도 — ev-mcp</title>
+    <meta
+      name="description"
+      content="last_tsdt 기반 고속도로 휴게소 충전 활성도 분석. 시간대 패턴, 인기 휴게소, 장기 미사용 식별."
+    />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <div>
+            <nav class="breadcrumb">
+              <a href="../">← 전체</a>
+              <span class="breadcrumb-sep">/</span>
+              <a href="./">고속도로</a>
+            </nav>
+            <h1>충전 활성도 분석</h1>
+            <p class="subtitle">
+              <code>last_tsdt</code> 99.9% 커버리지 · 1,977대 마지막 충전 시점
+              · 운영 실태 deep dive
+            </p>
+          </div>
+          <div class="header-actions">
+            <div class="nav-group">
+              <a href="./" class="nav-link">차트</a>
+              <a href="./map.html" class="nav-link">지도</a>
+              <a href="./operators.html" class="nav-link">운영자</a>
+              <a href="./route.html" class="nav-link">노선</a>
+            </div>
+            <div class="badge highway" id="header-badge" hidden>
+              <span class="badge-dot"></span>
+              <span id="header-snapshot">…</span>
+            </div>
+          </div>
+        </div>
+        <div class="meta">
+          <span id="snapshot-date">로딩 중…</span>
+          <span class="dot">·</span>
+          <span id="row-count">—</span>
+          <span class="dot">·</span>
+          <span class="powered">
+            DuckDB-WASM <span id="duckdb-version">…</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="status" class="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="status-text">DuckDB-WASM 초기화 중…</span>
+      </section>
+
+      <!-- KPI 6개 -->
+      <section class="kpi-grid" id="kpi-grid" hidden>
+        <div class="kpi">
+          <div class="kpi-label">분석 대상</div>
+          <div class="kpi-value" id="kpi-total">—</div>
+          <div class="kpi-sub">last_tsdt 있는 충전기</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">24시간 내 사용</div>
+          <div class="kpi-value" id="kpi-1d">—</div>
+          <div class="kpi-sub" id="kpi-1d-sub">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">7일 내 사용</div>
+          <div class="kpi-value" id="kpi-7d">—</div>
+          <div class="kpi-sub" id="kpi-7d-sub">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">30일 내 사용</div>
+          <div class="kpi-value" id="kpi-30d">—</div>
+          <div class="kpi-sub" id="kpi-30d-sub">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">60일+ 휴면</div>
+          <div class="kpi-value warn-text" id="kpi-dormant">—</div>
+          <div class="kpi-sub" id="kpi-dormant-sub">관리 필요</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">현재 사용 중</div>
+          <div class="kpi-value" id="kpi-now">—</div>
+          <div class="kpi-sub">stat='3' 충전중</div>
+        </div>
+      </section>
+
+      <!-- 인사이트 -->
+      <section class="insights" id="insights" hidden>
+        <h2 class="section-title">충전 활성도의 진짜 모습</h2>
+        <div class="insight-grid" id="insight-grid"></div>
+      </section>
+
+      <!-- 시간대 차트 -->
+      <h2 class="section-title" id="time-title" hidden>시간대별 충전 패턴</h2>
+
+      <section class="chart-card" id="card-hour" hidden>
+        <div class="chart-header">
+          <h3>last_tsdt 의 시간대 분포 (0~23시)</h3>
+          <p class="chart-desc">
+            점심(11~16시)이 전체의 약 70% — 식사 + 충전 패턴. 한국 EV 운전자의
+            장거리 이동 휴식 시간과 정확히 일치. 새벽(0~5시) 은 5% 미만으로 최소.
+          </p>
+          <p class="chart-desc-warn">
+            ⓘ 요일별 분포는 스냅샷 시점(목요일 16시) 단일 데이터 편향이 큼 →
+            요일 차원 분석은 의도적으로 생략 (직전 1주일 데이터만 신뢰 가능).
+          </p>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-hour"></canvas>
+        </div>
+      </section>
+
+      <!-- 회전율 -->
+      <h2 class="section-title" id="turnover-title" hidden>충전기 회전율</h2>
+
+      <section class="chart-card" id="card-turnover" hidden>
+        <div class="chart-header">
+          <h3>출력대별 평균 충전 시간 (분)</h3>
+          <p class="chart-desc">
+            <code>last_tedt - last_tsdt</code> 의 평균. 1~600분 범위 필터(이상치 제거).
+            출력 높을수록 짧은 회전 — AC완속(≤50kW)이 가장 길고, 350+ kW 초급속이
+            가장 짧음. tooltip 에 중앙값/샘플 수.
+          </p>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-turnover"></canvas>
+        </div>
+      </section>
+
+      <!-- 노선별 활성도 -->
+      <h2 class="section-title" id="highway-title" hidden>노선별 평균 활성도</h2>
+
+      <section class="chart-card" id="card-highway" hidden>
+        <div class="chart-header">
+          <h3>고속도로 노선별 평균 last_tsdt 경과 일수 — top 12</h3>
+          <p class="chart-desc">
+            노선의 모든 충전기 평균 "마지막 사용 후 경과 일수". <strong>작을수록 자주
+            쓰임</strong>. 충전기 20대 이상 노선만 포함 (통계 의미 확보).
+          </p>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-highway"></canvas>
+        </div>
+      </section>
+
+      <!-- 휴면 -->
+      <h2 class="section-title" id="dormant-title" hidden>휴면 충전기 — 심각도 분포</h2>
+
+      <div class="chart-grid">
+        <section class="chart-card" id="card-dormant-buckets" hidden>
+          <div class="chart-header">
+            <h3>휴면 기간 버킷별 분포</h3>
+            <p class="chart-desc">
+              60일+ 미사용 충전기를 60~90 / 91~180 / 181~365 / 365+ 일 4구간으로 분류.
+              긴 기간 = 사실상 방치.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-dormant-buckets"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card" id="card-dormant-highway" hidden>
+          <div class="chart-header">
+            <h3>노선별 휴면 충전기 ranking</h3>
+            <p class="chart-desc">
+              60일+ 휴면 충전기가 가장 많은 노선 top 8. tooltip 에 휴면 비율.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-dormant-highway"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <section id="error-panel" class="error-panel" hidden>
+        <h3>로드 실패</h3>
+        <pre id="error-message"></pre>
+        <p>
+          프로젝트 루트에서 <code>python -m http.server 8000</code> 실행 후
+          <code>http://localhost:8000/web/highway/activity.html</code>.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>
+          데이터: <a
+            href="https://www.data.go.kr/data/15076352/openapi.do"
+            target="_blank"
+            rel="noopener"
+          >한국환경공단 OpenAPI</a>
+          · 필터: <code>kind_detail='C001'</code>
+        </div>
+        <div>
+          ev-mcp Phase 10 ·
+          <a href="../">전체</a> · <a href="./">차트</a> ·
+          <a href="./map.html">지도</a> · <a href="./operators.html">운영자</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script type="module" src="./activity.js"></script>
+  </body>
+</html>

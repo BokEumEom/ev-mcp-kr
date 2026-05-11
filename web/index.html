@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ev-mcp 분석 대시보드 — 한국 전기차 충전소</title>
+    <meta
+      name="description"
+      content="한국환경공단 OpenAPI v1.23 충전소 데이터로 만든 인터랙티브 분석 대시보드. DuckDB-WASM 으로 브라우저에서 직접 query."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <div>
+            <h1>한국 전기차 충전소 분석</h1>
+            <p class="subtitle">
+              한국환경공단 OpenAPI v1.23 · 인터랙티브 대시보드
+            </p>
+          </div>
+          <div class="header-actions">
+            <a href="./highway/" class="nav-link">고속도로 휴게소 보기 →</a>
+            <div class="badge" id="header-badge" hidden>
+              <span class="badge-dot"></span>
+              <span id="header-snapshot">…</span>
+            </div>
+          </div>
+        </div>
+        <div class="meta">
+          <span id="snapshot-date">로딩 중…</span>
+          <span class="dot">·</span>
+          <span id="row-count">—</span>
+          <span class="dot">·</span>
+          <span class="powered">
+            DuckDB-WASM <span id="duckdb-version">…</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="status" class="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="status-text">DuckDB-WASM 초기화 중…</span>
+      </section>
+
+      <!-- ───────── KPI 8개 ───────── -->
+      <section class="kpi-grid" id="kpi-grid" hidden>
+        <div class="kpi">
+          <div class="kpi-label">총 충전기</div>
+          <div class="kpi-value" id="kpi-total">—</div>
+          <div class="kpi-sub" id="kpi-total-sub">운영중</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">운영자 수</div>
+          <div class="kpi-value" id="kpi-operators">—</div>
+          <div class="kpi-sub">개 사업자</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">시군구 수</div>
+          <div class="kpi-value" id="kpi-sigungu">—</div>
+          <div class="kpi-sub">개 지역</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">즉시 사용 가능</div>
+          <div class="kpi-value" id="kpi-available">—</div>
+          <div class="kpi-sub" id="kpi-available-pct">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">급속(DC) 비율</div>
+          <div class="kpi-value" id="kpi-dc-ratio">—</div>
+          <div class="kpi-sub" id="kpi-dc-sub">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">24시간 운영</div>
+          <div class="kpi-value" id="kpi-24h">—</div>
+          <div class="kpi-sub" id="kpi-24h-sub">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">무료 주차</div>
+          <div class="kpi-value" id="kpi-free-parking">—</div>
+          <div class="kpi-sub" id="kpi-free-parking-sub">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">평균 출력</div>
+          <div class="kpi-value" id="kpi-avg-output">—</div>
+          <div class="kpi-sub">kW · 가중평균</div>
+        </div>
+      </section>
+
+      <!-- ───────── 자동 인사이트 카드 ───────── -->
+      <section class="insights" id="insights" hidden>
+        <h2 class="section-title">데이터에서 발견한 것</h2>
+        <div class="insight-grid" id="insight-grid"></div>
+      </section>
+
+      <!-- ───────── 메인 차트들 ───────── -->
+      <h2 class="section-title" id="charts-title" hidden>운영 품질</h2>
+
+      <section class="chart-card" id="card-operators" hidden>
+        <div class="chart-header">
+          <h3>운영자별 비가동률 top 10</h3>
+          <p class="chart-desc">
+            <code>stat IN ('1','4','5')</code> 통신이상 / 운영중지 / 점검중
+            합산. <code>stat='9'</code> (모니터링 미연동) 은
+            <strong>별도 추적</strong> — 비가동률 해석의 신뢰도 동반 노출.
+            100건 이상의 충전기를 가진 운영자만 포함.
+          </p>
+        </div>
+        <div class="chart-wrap chart-wrap-tall">
+          <canvas id="chart-operators"></canvas>
+        </div>
+      </section>
+
+      <h2 class="section-title" id="region-title" hidden>지역 분포</h2>
+
+      <div class="chart-grid">
+        <section class="chart-card" id="card-density" hidden>
+          <div class="chart-header">
+            <h3>시군구별 충전기 밀도 top 10</h3>
+            <p class="chart-desc">
+              충전기 수 + 운영자 다양성 + 급속(DC) 비율. tooltip 참고.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-density"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card" id="card-dc-ratio" hidden>
+          <div class="chart-header">
+            <h3>광역시도별 급속(DC) 비율</h3>
+            <p class="chart-desc">
+              비도시권(경북·전북·강원) 이 도시(서울·부산) 대비 DC 비율 2~3배.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-dc-ratio"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <h2 class="section-title" id="composition-title" hidden>충전기 구성</h2>
+
+      <div class="chart-grid">
+        <section class="chart-card" id="card-types" hidden>
+          <div class="chart-header">
+            <h3>충전기 타입 분포</h3>
+            <p class="chart-desc">
+              완속(AC) vs 급속(DC) vs 멀티 — 코드 테이블 기준.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-types"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card" id="card-output" hidden>
+          <div class="chart-header">
+            <h3>출력(kW) 분포</h3>
+            <p class="chart-desc">
+              7kW (AC표준) / 11~14 / 50 (구 급속) / 100 / 200+ (초급속).
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-output"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <h2 class="section-title" id="growth-title" hidden>설치 추이 + 시설 종류</h2>
+
+      <div class="chart-grid">
+        <section class="chart-card" id="card-year" hidden>
+          <div class="chart-header">
+            <h3>연도별 신규 설치</h3>
+            <p class="chart-desc">
+              <code>year</code> 컬럼 기준. 2022~2024 폭증, 2025 이후 감소세.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-year"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card" id="card-kind" hidden>
+          <div class="chart-header">
+            <h3>충전소 종류(kind)</h3>
+            <p class="chart-desc">
+              아파트 / 공공주차장 / 상업시설 / 휴게소 등 설치 장소 분류.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-kind"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <section id="error-panel" class="error-panel" hidden>
+        <h3>로드 실패</h3>
+        <pre id="error-message"></pre>
+        <p>
+          프로젝트 <strong>루트</strong>에서
+          <code>python -m http.server 8000</code> 실행 후
+          <code>http://localhost:8000/web/</code> 에 접속하세요. 자세한 안내는
+          <a href="./README.md"><code>web/README.md</code></a> 참조.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>
+          데이터: 공공데이터포털 ·
+          <a
+            href="https://www.data.go.kr/data/15076352/openapi.do"
+            target="_blank"
+            rel="noopener"
+          >한국환경공단 EV 충전소 OpenAPI v1.23</a>
+        </div>
+        <div>
+          ev-mcp Phase 10 (ADR-001) · DuckDB-WASM + Chart.js · 모든 분석은
+          브라우저에서 직접 실행
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

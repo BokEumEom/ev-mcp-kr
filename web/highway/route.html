@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>고속도로 노선 deep dive — ev-mcp</title>
+    <meta
+      name="description"
+      content="단일 고속도로 노선의 휴게소·충전기·출력·운영자·인프라 간격을 한 화면에."
+    />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <div>
+            <nav class="breadcrumb">
+              <a href="../">← 전체</a>
+              <span class="breadcrumb-sep">/</span>
+              <a href="./">고속도로</a>
+            </nav>
+            <h1 id="page-title">노선 deep dive</h1>
+            <p class="subtitle" id="page-subtitle">
+              <code>kind_detail = 'C001'</code> · 단일 노선 인프라 분석
+            </p>
+            <div class="route-picker">
+              <label for="hw-select">노선 선택:</label>
+              <select id="hw-select" disabled>
+                <option>로딩 중…</option>
+              </select>
+            </div>
+          </div>
+          <div class="header-actions">
+            <div class="nav-group">
+              <a href="./" class="nav-link">차트</a>
+              <a href="./map.html" class="nav-link">지도</a>
+              <a href="./operators.html" class="nav-link">운영자</a>
+              <a href="./activity.html" class="nav-link">활성도</a>
+            </div>
+            <div class="badge highway" id="header-badge" hidden>
+              <span class="badge-dot"></span>
+              <span id="header-snapshot">…</span>
+            </div>
+          </div>
+        </div>
+        <div class="meta">
+          <span id="snapshot-date">로딩 중…</span>
+          <span class="dot">·</span>
+          <span id="row-count">—</span>
+          <span class="dot">·</span>
+          <span class="powered">
+            DuckDB-WASM <span id="duckdb-version">…</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="status" class="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="status-text">DuckDB-WASM 초기화 중…</span>
+      </section>
+
+      <!-- KPI 6 -->
+      <section class="kpi-grid" id="kpi-grid" hidden>
+        <div class="kpi">
+          <div class="kpi-label">휴게소</div>
+          <div class="kpi-value" id="kpi-stations">—</div>
+          <div class="kpi-sub" id="kpi-stations-sub">개</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">충전기</div>
+          <div class="kpi-value" id="kpi-chargers">—</div>
+          <div class="kpi-sub" id="kpi-chargers-sub">대</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">평균 출력</div>
+          <div class="kpi-value" id="kpi-avg-kw">—</div>
+          <div class="kpi-sub" id="kpi-avg-kw-sub">kW · 전체 평균과 비교</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">DC 비율</div>
+          <div class="kpi-value" id="kpi-dc">—</div>
+          <div class="kpi-sub" id="kpi-dc-sub">급속 충전기</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">평균 휴게소 간격</div>
+          <div class="kpi-value" id="kpi-spacing">—</div>
+          <div class="kpi-sub" id="kpi-spacing-sub">km · 인접 휴게소 거리</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">운영자</div>
+          <div class="kpi-value" id="kpi-operators">—</div>
+          <div class="kpi-sub" id="kpi-operators-sub">곳</div>
+        </div>
+      </section>
+
+      <!-- 인사이트 -->
+      <section class="insights" id="insights" hidden>
+        <h2 class="section-title" id="insights-title">이 노선의 핵심</h2>
+        <div class="insight-grid" id="insight-grid"></div>
+      </section>
+
+      <!-- 휴게소 list -->
+      <h2 class="section-title" id="stations-title" hidden>휴게소 list (남→북 정렬)</h2>
+
+      <section class="chart-card" id="card-stations" hidden>
+        <div class="chart-header">
+          <h3>이 노선의 휴게소별 충전기 + 평균 출력</h3>
+          <p class="chart-desc">
+            위→아래 = 남→북 (lat 정렬). 막대 길이 = 충전기 수, 색 = 평균 출력 (녹색
+            200kW+, 노란색 100~200kW, 파란색 그 이하). tooltip 에 운영자 + 주소.
+          </p>
+        </div>
+        <div class="chart-wrap chart-wrap-tall">
+          <canvas id="chart-stations"></canvas>
+        </div>
+      </section>
+
+      <!-- 출력 분포 + 운영자 + 거리 -->
+      <h2 class="section-title" id="composition-title" hidden>구성 비교 + 인프라 밀도</h2>
+
+      <div class="chart-grid">
+        <section class="chart-card" id="card-output" hidden>
+          <div class="chart-header">
+            <h3>출력 분포 — 이 노선 vs 고속도로 전체</h3>
+            <p class="chart-desc">
+              비율(%) 비교. 이 노선이 초급속에 강한가, 평균적인가?
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-output"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card" id="card-ops" hidden>
+          <div class="chart-header">
+            <h3>운영자 점유</h3>
+            <p class="chart-desc">
+              이 노선의 휴게소를 어떤 운영자가 가져갔는가. 1휴게소-1운영자 독점
+              구조의 시장 분할.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-ops"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <h2 class="section-title" id="spacing-title" hidden>휴게소 간 거리 분포</h2>
+
+      <section class="chart-card" id="card-spacing" hidden>
+        <div class="chart-header">
+          <h3>인접 휴게소 간 거리 (haversine, km)</h3>
+          <p class="chart-desc">
+            남북(lat) 정렬 후 인접 휴게소 간 직선 거리 계산. EV 한 충전 사거리
+            (대략 200~400 km) 대비 분포. <strong>60 km 이상 = 충전 사각지대 후보</strong>.
+            tooltip 에 휴게소 쌍.
+          </p>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-spacing"></canvas>
+        </div>
+      </section>
+
+      <section id="error-panel" class="error-panel" hidden>
+        <h3>로드 실패</h3>
+        <pre id="error-message"></pre>
+        <p>
+          프로젝트 루트에서 <code>python -m http.server 8000</code> 실행 후
+          <code>http://localhost:8000/web/highway/route.html</code>.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>
+          데이터: <a
+            href="https://www.data.go.kr/data/15076352/openapi.do"
+            target="_blank"
+            rel="noopener"
+          >한국환경공단 OpenAPI</a>
+          · 거리 = haversine (대원 거리)
+        </div>
+        <div>
+          ev-mcp Phase 10 ·
+          <a href="../">전체</a> · <a href="./">차트</a> ·
+          <a href="./map.html">지도</a> · <a href="./operators.html">운영자</a> ·
+          <a href="./activity.html">활성도</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script type="module" src="./route.js"></script>
+  </body>
+</html>

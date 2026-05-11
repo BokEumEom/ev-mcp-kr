@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>고속도로 운영자 분석 — ev-mcp</title>
+    <meta
+      name="description"
+      content="한국 고속도로 휴게소 충전 운영자 12곳의 시장 점유, 노선 전략, 진입 시기, 규모 vs 출력 분석."
+    />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <div>
+            <nav class="breadcrumb">
+              <a href="../">← 전체 대시보드</a>
+              <span class="breadcrumb-sep">/</span>
+              <a href="./">고속도로 차트</a>
+            </nav>
+            <h1>고속도로 운영자 분석</h1>
+            <p class="subtitle">
+              <code>kind_detail = 'C001'</code> · 휴게소 622곳 모두 1휴게소-1운영자
+              독점 · 18곳 운영자의 시장 분할
+            </p>
+          </div>
+          <div class="header-actions">
+            <div class="nav-group">
+              <a href="./" class="nav-link">차트</a>
+              <a href="./map.html" class="nav-link">지도</a>
+              <a href="./activity.html" class="nav-link">활성도</a>
+              <a href="./route.html" class="nav-link">노선</a>
+            </div>
+            <div class="badge highway" id="header-badge" hidden>
+              <span class="badge-dot"></span>
+              <span id="header-snapshot">…</span>
+            </div>
+          </div>
+        </div>
+        <div class="meta">
+          <span id="snapshot-date">로딩 중…</span>
+          <span class="dot">·</span>
+          <span id="row-count">—</span>
+          <span class="dot">·</span>
+          <span class="powered">
+            DuckDB-WASM <span id="duckdb-version">…</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="status" class="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="status-text">DuckDB-WASM 초기화 중…</span>
+      </section>
+
+      <!-- 인사이트 5개 -->
+      <section class="insights" id="insights" hidden>
+        <h2 class="section-title">운영자 시장의 구조</h2>
+        <div class="insight-grid" id="insight-grid"></div>
+      </section>
+
+      <!-- Ranking 표 -->
+      <h2 class="section-title" id="ranking-title" hidden>운영자 종합 ranking</h2>
+
+      <section class="chart-card" id="card-ranking" hidden>
+        <div class="chart-header">
+          <h3>운영자별 종합 통계 — 12곳</h3>
+          <p class="chart-desc">
+            점유율 막대는 충전기 수 기준. 비가동률(<code>stat IN ('1','4','5')</code>)
+            과 미연동률(<code>stat='9'</code>) 분리 — Stage 10.4 의 운영 검증된 정의.
+            시도 다양성 = 운영자가 진입한 광역시도 수.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table class="ranking-table" id="ranking-table">
+            <thead>
+              <tr>
+                <th class="num">#</th>
+                <th>운영자</th>
+                <th class="num">충전기</th>
+                <th class="num">휴게소</th>
+                <th class="num">시도</th>
+                <th class="num">평균 kW</th>
+                <th class="num">DC %</th>
+                <th class="num">비가동</th>
+                <th class="num">미연동</th>
+                <th class="share-col">점유율</th>
+              </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 히트맵 -->
+      <h2 class="section-title" id="heatmap-title" hidden>운영자 × 노선 매트릭스</h2>
+
+      <section class="chart-card" id="card-heatmap" hidden>
+        <div class="chart-header">
+          <h3>어느 운영자가 어느 노선에 강한가</h3>
+          <p class="chart-desc">
+            상위 8 운영자 × 상위 8 노선. 셀 색이 진할수록 충전기 多. ME(환경부) 가
+            6개 노선에 분산 vs SG(SK시그넷) 의 서해안 집중 같은 전략 차이가 한 눈에.
+          </p>
+        </div>
+        <div class="heatmap-wrap" id="heatmap-wrap"></div>
+      </section>
+
+      <h2 class="section-title" id="dual-title" hidden>진입 시기 + 규모 전략</h2>
+
+      <div class="chart-grid">
+        <!-- 진입 연도 -->
+        <section class="chart-card" id="card-year" hidden>
+          <div class="chart-header">
+            <h3>운영자별 진입 시기 (연도별 신규 설치)</h3>
+            <p class="chart-desc">
+              ME(환경부) 2017~2022 거점 구축 vs ST(SK일렉링크) 2023 폭증 진입 — 세대 교체.
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-year"></canvas>
+          </div>
+        </section>
+
+        <!-- 산점도: 규모 vs 출력 -->
+        <section class="chart-card" id="card-scatter" hidden>
+          <div class="chart-header">
+            <h3>규모 vs 평균 출력</h3>
+            <p class="chart-desc">
+              X: 총 충전기 수 (log) · Y: 평균 출력 (kW). 우상단 = 큰 규모 + 고출력,
+              좌상단 = 소규모 고출력 (신규 진입자 특성).
+            </p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-scatter"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <section id="error-panel" class="error-panel" hidden>
+        <h3>로드 실패</h3>
+        <pre id="error-message"></pre>
+        <p>
+          프로젝트 루트에서
+          <code>python -m http.server 8000</code> 실행 후
+          <code>http://localhost:8000/web/highway/operators.html</code> 접속.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>
+          데이터: <a
+            href="https://www.data.go.kr/data/15076352/openapi.do"
+            target="_blank"
+            rel="noopener"
+          >한국환경공단 OpenAPI</a>
+          · 필터: <code>kind_detail='C001'</code>
+        </div>
+        <div>
+          ev-mcp Phase 10 · DuckDB-WASM + Chart.js ·
+          <a href="../">전체</a> · <a href="./">차트</a> · <a href="./map.html">지도</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script type="module" src="./operators.js"></script>
+  </body>
+</html>
