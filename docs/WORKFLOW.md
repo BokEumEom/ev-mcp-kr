@@ -33,15 +33,26 @@
 .claude/
 ├─ settings.json           # 팀 공유: 권한 allowlist
 ├─ commands/               # 슬래시 명령
-│   ├─ verify.md           # /verify
+│   ├─ phase-cycle.md      # /phase-cycle N (팀 모드 자동 진행)
+│   ├─ verify.md           # /verify (Python 만 — 강화판은 verify-stack 스킬)
 │   ├─ phase-start.md      # /phase-start N
 │   ├─ phase-review.md     # /phase-review N
 │   ├─ phase-doc.md        # /phase-doc N
 │   ├─ spec-check.md       # /spec-check
 │   └─ extract-codes.md    # /extract-codes
-├─ agents/                 # 사브 에이전트
-│   ├─ spec-auditor.md     # docx ↔ 코드 일치성 감사
-│   └─ mcp-tool-author.md  # 툴 한 개 작성 전문가
+├─ agents/                 # 팀 멤버 (phase-cycle 팀 구성)
+│   ├─ phase-orchestrator.md # 리더 — 8단계 사이클 총괄
+│   ├─ python-builder.md   # src/ev_mcp/ Python 구현·테스트
+│   ├─ workers-builder.md  # workers/ TypeScript 구현·테스트
+│   ├─ quality-gate.md     # verify + review + secret 정적 검사
+│   └─ spec-auditor.md     # docx ↔ 코드 일치성 감사
+├─ skills/                 # 에이전트가 사용하는 스킬
+│   ├─ phase-cycle/        # 8단계 오케스트레이터
+│   ├─ verify-stack/       # pytest+ruff+mypy+vitest+tsc 통합
+│   ├─ mcp-tool-recipe/    # MCP 툴 작성 표준 레시피
+│   ├─ workers-do-style/   # Workers + DO SQL 패턴
+│   ├─ secret-hygiene/     # SERVICE_KEY 누출 방지·정적 검사
+│   └─ phase-doc-format/   # PHASE{N}.md 보고서 포맷
 └─ rules/                  # 프로젝트 룰 (CLAUDE.md 보조)
     ├─ secrets.md
     ├─ spec-discipline.md
