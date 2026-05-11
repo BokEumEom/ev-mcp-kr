@@ -261,7 +261,59 @@ ev_mcp/
 4. Three end-to-end usage examples in README (per submission requirement).
 5. Submit Google Form to Claude's MCP directory.
 
-**Total estimate:** ~6 days end-to-end.
+**Total estimate (Phase 1~5):** ~6 days end-to-end.
+
+> Phase 6~9 는 사후에 추가된 확장 트랙. 각 Phase 보고서 (`docs/PHASE6.md` ~ `docs/PHASE9.md`) 가 진실의 원천이고, 본 PLAN.md 의 Phase 섹션은 초기 출시(1~5) + 새로 합의된 확장(10+) 만 다룬다.
+
+### Phase 10 — DuckDB analytics sidecar (2~3 days)
+
+**근거 ADR:** `docs/adr/ADR-001-duckdb-analytics.md`. PoC (`scratch/duckdb_poc.py`) 결과 — Parquet 위에서의 분석 쿼리가 SQLite 대비 74× 빠르고, 압축률 17.8× (257MB→14.4MB), R2 비용 무료 tier 의 5% 미만.
+
+**목표:** 기존 7개 lookup 툴을 그대로 둔 채 **분석 전용 MCP 툴 1~2개**를 Python 측에 추가. 시계열 누적(R2 일별 Parquet 스냅샷)으로 트렌드 질문 가능하게.
+
+**Non-goals (Phase 10):**
+- Workers 또는 Python SQLite 스토어 폐기 X
+- Workers 내부에서 DuckDB 실행 X (ADR Alt-1 거부)
+- DuckDB ATTACH mode 운영 사용 X (ADR Alt-3 거부)
+- 분석 툴 5개+ 일괄 추가 X (먼저 1~2개로 가치 확인 후 확장)
+
+#### Stage 10.1 — Workers daily R2 Parquet export (1 day)
+1. `wrangler.toml` 에 R2 bucket binding 추가 (`SNAPSHOTS`). 사용자가 `wrangler r2 bucket create ev-mcp-snapshots` 직접 실행.
+2. `workers/src/snapshot.ts` 신설 — `exportSnapshot(env, date)`: DO SQL 의 `chargers` 테이블 전체를 Parquet 으로 직렬화 + ZSTD 압축 + R2 PUT (`chargers_YYYY-MM-DD.parquet`).
+3. `workers/src/sync.ts` 의 cycle 완료 시점(`last_completed_page == total_pages`)에서 1회 export 호출. 실패 시 다음 cycle 에서 재시도, 3회 실패면 sync_state 에 마지막 에러 기록.
+4. vitest: export 단위 테스트 (R2 mock + Parquet schema 검증) + sync 통합 테스트.
+
+#### Stage 10.2 — Python analytics 모듈 + DuckDB 연결 (0.5~1 day) ✅ 2026-05-11
+1. `pyproject.toml` 에 `duckdb` 의존성 추가 — **사용자 컨펌 필요**.
+2. `src/ev_mcp/analytics.py` 신설 — `AnalyticsClient`: DuckDB in-memory + `httpfs` extension + R2 자격증명 (S3 호환).
+3. `Settings` 에 `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (SecretStr) 추가. `.env.example` 빈 값 + 한 줄 코멘트.
+4. `client._redact()` 와 동등한 R2 자격증명 마스킹 헬퍼.
+5. pytest: `httpfs` mock 으로 read_parquet 호출 검증, 자격증명 누출 회귀 테스트.
+
+#### Stage 10.3 — 새 분석 MCP 툴 1~2개 (1 day) ✅ 2026-05-11
+1. `src/ev_mcp/tools/analytics_operator_health.py` — `analyze_operator_health` (운영자별 비가동률 top N).
+   - 입력: `limit: int = 10`, `min_chargers: int = 100`, `days_back: int = 1` (스냅샷 1일 = 최신 1개)
+   - 출력: Pydantic `OperatorHealthRow` list
+2. `src/ev_mcp/tools/analytics_regional_density.py` — `regional_density` (시군구별 충전기 밀도 + 운영자 수 + DC 비율).
+3. `server.py` 등록 (`readOnlyHint=True`).
+4. 각 툴 3 테스트 (해피 / 빈결과 / 잘못된 입력).
+5. 도크스트링 예시: "엘에스이링크 같은 운영자 중 가장 자주 고장나는 곳", "강남구 충전기 밀도".
+
+#### Stage 10.4 — 보고 + 모니터링 (0.5 day)
+1. `docs/PHASE10.md` — 보고서 (Phase 9 톤 참고).
+2. R2 사용량 모니터링 — 현 시점 수동 (CF 대시보드). 자동화는 후속 Phase.
+3. ADR-001 상태를 "Accepted" → 실제 운영 결과 반영 (성공/조정/롤백) 한 줄 추가.
+
+**검증 (Phase 10 종료 게이트):**
+- vitest + pytest 그린 (회귀 0)
+- 실 R2 export 1회 성공 + 분석 툴 자연어 스모크 통과 ("강남구 충전기 밀도 알려줘")
+- `/spec-check` 통과 (docx 변경 없음, 새 툴은 derived 데이터)
+- `/phase-review 10` CRITICAL/HIGH 0건 (특히 R2 자격증명 누출)
+
+**롤백:** ADR-001 의 "롤백 계획" 그대로. Stage 단위 가역.
+
+**진행 이력:**
+- 2026-05-11 — Stage 10.2 + 10.3 완료. `src/ev_mcp/analytics.py`, `tools/analytics_operator_health.py`, `tools/analytics_regional_density.py` + 18개 새 테스트. 전체 verify 그린 (pytest 122 / ruff clean / mypy strict clean). 로컬 Parquet 위에서 동작 확인. Stage 10.1 (Workers R2 export) 은 사용자 R2 준비 후 별도 사이클.
 
 ---
 
