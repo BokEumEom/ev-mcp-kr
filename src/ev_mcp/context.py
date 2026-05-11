@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .analytics import AnalyticsClient
 from .cache import Caches
 from .client import EvChargerClient
 from .settings import Settings
@@ -21,3 +22,4 @@ class ToolContext:
     client: EvChargerClient
     store: ChargerStore  # persistent charger inventory
     caches: Caches  # in-memory short-lived cache for getChargerStatus (60s)
+    analytics: AnalyticsClient  # Phase 10 — DuckDB sidecar (read_parquet)

@@ -15,6 +15,7 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "starlette>=0.37",
     "structlog>=24.1",
+    "duckdb>=1.5",
 ]
 
 [project.optional-dependencies]

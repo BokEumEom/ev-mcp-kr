@@ -162,6 +162,51 @@ class StationDetails(BaseModel):
         )
 
 
+class OperatorHealthRow(BaseModel):
+    """analyze_operator_health 의 한 행.
+
+    Phase 10 — Parquet 스냅샷에서 GROUP BY busi_id 로 집계.
+
+    스펙(``stat`` 코드)상 의미:
+    - ``"1"`` 통신이상 / ``"4"`` 운영중지 / ``"5"`` 점검중 → **실제 비가동** (``downtime_*``)
+    - ``"2"`` 충전대기 → 즉시 사용 가능 (``available_now``)
+    - ``"3"`` 충전중 → 가동 중이지만 다른 사람이 사용 중
+    - ``"9"`` 상태미확인 → **모니터링 부재** (운영자가 실시간 상태 보고 안 함)
+      → 충전기 자체의 가동 여부와 별개. ``unmonitored_*`` 로 분리 집계.
+
+    비가동률(``downtime_ratio``) 해석 시 반드시 ``unmonitored_ratio`` 와 함께 봐야 함.
+    어떤 운영자는 ``downtime_ratio=2%`` 인데 ``unmonitored_ratio=90%`` 일 수 있음
+    (= 데이터 부재일 뿐 실제 운영 상태는 알 수 없음).
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    busi_id: str
+    busi_nm: str
+    operator_label: str
+    total_chargers: int
+    available_now: int  # stat='2'
+    downtime_count: int  # stat IN ('1','4','5') — 실제 사용 불가
+    downtime_ratio: float  # 0.0~1.0
+    unmonitored_count: int  # stat='9' — 실시간 상태 미보고
+    unmonitored_ratio: float  # 0.0~1.0
+
+
+class RegionalDensityRow(BaseModel):
+    """regional_density 의 한 행. 시군구 단위 집계."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    zcode: str
+    sido_label: str
+    zscode: str | None = None
+    sigungu_label: str | None = None
+    total_chargers: int
+    distinct_operators: int
+    dc_charger_count: int  # 급속 (DC 차데모/콤보/NACS) 수
+    dc_ratio: float  # 0.0~1.0
+
+
 class StatusChange(BaseModel):
     """One row from recent_status_changes."""
 

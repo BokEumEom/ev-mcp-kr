@@ -23,6 +23,22 @@ class Settings(BaseSettings):
         description="SQLite charger inventory store; populated by scripts/sync_chargers.py",
     )
 
+    # Phase 10 — DuckDB 분석 사이드카 (ADR-001).
+    # Stage 10.2 는 로컬 Parquet only. Stage 10.1 진입 시 R2 자격증명 4개 채우면
+    # snapshot_source="r2" 로 전환.
+    snapshot_path: Path = Field(
+        default=Path("scratch/chargers_snapshot.parquet"),
+        description="로컬 Parquet 스냅샷 경로 (snapshot_source='local' 일 때 사용)",
+    )
+    snapshot_source: str = Field(
+        default="local",
+        description="분석 데이터 소스: 'local' (snapshot_path) 또는 'r2' (Cloudflare R2)",
+    )
+    r2_account_id: SecretStr | None = Field(default=None, description="Cloudflare R2 account ID")
+    r2_access_key_id: SecretStr | None = Field(default=None, description="R2 S3-compatible key ID")
+    r2_secret_access_key: SecretStr | None = Field(default=None, description="R2 S3-compatible secret")
+    r2_bucket: str | None = Field(default=None, description="R2 bucket name (예: ev-mcp-snapshots)")
+
     # Default to loopback. Containers / Render set HOST=0.0.0.0 explicitly.
     host: str = "127.0.0.1"
     port: int = 8000

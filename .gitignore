@@ -28,3 +28,6 @@ data/*.db-wal
 .DS_Store
 .idea/
 .vscode/
+
+# PoC / 임시 실험 — 운영 코드 영향 없음, commit 안 함
+scratch/

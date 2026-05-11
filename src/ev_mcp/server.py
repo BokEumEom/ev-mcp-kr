@@ -29,6 +29,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
+from .analytics import build_analytics_client
 from .cache import build_caches
 from .client import EvChargerClient
 from .codes_lookup import (
@@ -41,9 +42,18 @@ from .codes_lookup import (
     stat_table,
 )
 from .context import ToolContext
-from .domain import ChargerNearby, ChargerSummary, StationDetails, StatusChange
+from .domain import (
+    ChargerNearby,
+    ChargerSummary,
+    OperatorHealthRow,
+    RegionalDensityRow,
+    StationDetails,
+    StatusChange,
+)
 from .settings import Settings, load_settings
 from .store import open_store
+from .tools.analytics_operator_health import analyze_operator_health as _analyze_operator_health
+from .tools.analytics_regional_density import regional_density as _regional_density
 from .tools.codes import CodeCategory
 from .tools.codes import lookup_codes as _lookup_codes
 from .tools.nearby import find_chargers_nearby as _find_nearby
@@ -201,7 +211,8 @@ def build_server(settings: Settings | None = None) -> tuple[FastMCP, ToolContext
     client = EvChargerClient(s)
     caches = build_caches(s)
     store = open_store(s.db_path)
-    ctx = ToolContext(settings=s, client=client, store=store, caches=caches)
+    analytics = build_analytics_client(s)
+    ctx = ToolContext(settings=s, client=client, store=store, caches=caches, analytics=analytics)
 
     mcp = FastMCP(
         name="ev-mcp",
@@ -302,6 +313,36 @@ def _register_tools(mcp: FastMCP, ctx: ToolContext) -> None:
         )
 
     @mcp.tool(annotations=READ_ONLY)
+    def analyze_operator_health(
+        *,
+        limit: int = 10,
+        min_chargers: int = 100,
+    ) -> list[OperatorHealthRow]:
+        """운영자별 비가동률(stat IN ('1','4','5'): 통신이상/운영중지/점검중) top N.
+
+        Parquet 스냅샷 기준(일별, 최신). 각 행에 **unmonitored_ratio**(stat='9'
+        상태미확인 비율) 가 함께 반환됨 — unmonitored 가 높으면 비가동률 해석을 보류
+        해야 함(운영자가 실시간 상태 보고를 안 하는 케이스 = 충전기는 정상일 수 있음).
+
+        "운영자별로 충전기가 가장 자주 고장나는 곳" 같은 질문에 사용. limit 기본 10,
+        min_chargers 기본 100 (작은 운영자 노이즈 제거).
+        """
+        return _analyze_operator_health(limit=limit, min_chargers=min_chargers, ctx=ctx)
+
+    @mcp.tool(annotations=READ_ONLY)
+    def regional_density(
+        *,
+        group_by: str = "sigungu",
+        limit: int = 10,
+    ) -> list[RegionalDensityRow]:
+        """시도/시군구 단위 충전기 밀도 top N — 운영자 다양성 + 급속(DC) 비율 포함.
+
+        group_by="sigungu" (기본, 시군구 단위) 또는 "sido" (광역시도 단위).
+        "강남구 충전기 밀도" 같은 광역 질문 답변에 활용.
+        """
+        return _regional_density(group_by=group_by, limit=limit, ctx=ctx)
+
+    @mcp.tool(annotations=READ_ONLY)
     def lookup_codes(*, category: CodeCategory) -> dict[str, str]:
         """공통 코드 테이블 조회. **반드시 category 를 7개 중 하나로 지정**.
 
@@ -393,6 +434,7 @@ def _build_starlette_app(mcp: FastMCP, ctx: ToolContext) -> Starlette:
             finally:
                 await ctx.client.aclose()
                 ctx.store.close()
+                ctx.analytics.close()
 
     middleware = [
         Middleware(

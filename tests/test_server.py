@@ -19,11 +19,12 @@ from ev_mcp.settings import Settings
 
 
 @pytest.mark.asyncio
-async def test_build_server_registers_seven_tools(settings: Settings) -> None:
+async def test_build_server_registers_all_tools(settings: Settings) -> None:
     mcp, _ctx = build_server(settings)
     tools = await mcp.list_tools()
     names = {t.name for t in tools}
     assert names == {
+        # Phase 1~9: lookup tools
         "find_chargers_nearby",
         "get_charger_status",
         "search_chargers_by_region",
@@ -31,6 +32,9 @@ async def test_build_server_registers_seven_tools(settings: Settings) -> None:
         "get_station_details",
         "recent_status_changes",
         "lookup_codes",
+        # Phase 10 (ADR-001): analytics sidecar
+        "analyze_operator_health",
+        "regional_density",
     }
 
 

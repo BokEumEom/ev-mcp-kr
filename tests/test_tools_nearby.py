@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 import respx
 
+from ev_mcp.analytics import AnalyticsClient
 from ev_mcp.cache import build_caches
 from ev_mcp.client import EvChargerClient
 from ev_mcp.context import ToolContext
@@ -110,6 +111,7 @@ async def test_nearby_uses_geocoder_when_address_only(
     caches = build_caches(settings)
     store = ChargerStore(":memory:")
     store.seed_for_testing(rows)
+    analytics = AnalyticsClient(settings)
 
     vworld = {
         "response": {
@@ -123,7 +125,11 @@ async def test_nearby_uses_geocoder_when_address_only(
             router.get(VWORLD_BASE_URL).respond(json=vworld)
             async with EvChargerClient(settings) as client:
                 ctx = ToolContext(
-                    settings=settings, client=client, store=store, caches=caches
+                    settings=settings,
+                    client=client,
+                    store=store,
+                    caches=caches,
+                    analytics=analytics,
                 )
                 results = await find_chargers_nearby(
                     address="강남역", radius_km=1.0, ctx=ctx
@@ -132,6 +138,7 @@ async def test_nearby_uses_geocoder_when_address_only(
         assert results[0].stat_id == "X"
     finally:
         store.close()
+        analytics.close()
 
 
 @pytest.mark.asyncio
