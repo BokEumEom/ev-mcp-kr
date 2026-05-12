@@ -37,6 +37,8 @@
               <a href="./map.html" class="nav-link">지도</a>
               <a href="./operators.html" class="nav-link">운영자</a>
               <a href="./activity.html" class="nav-link">활성도</a>
+              <a href="./station.html" class="nav-link">휴게소</a>
+              <a href="./compare.html" class="nav-link">비교</a>
             </div>
             <div class="badge highway" id="header-badge" hidden>
               <span class="badge-dot"></span>
@@ -106,12 +108,25 @@
       <h2 class="section-title" id="stations-title" hidden>휴게소 list (남→북 정렬)</h2>
 
       <section class="chart-card" id="card-stations" hidden>
-        <div class="chart-header">
-          <h3>이 노선의 휴게소별 충전기 + 평균 출력</h3>
-          <p class="chart-desc">
-            위→아래 = 남→북 (lat 정렬). 막대 길이 = 충전기 수, 색 = 평균 출력 (녹색
-            200kW+, 노란색 100~200kW, 파란색 그 이하). tooltip 에 운영자 + 주소.
-          </p>
+        <div class="chart-header chart-header-row">
+          <div>
+            <h3>이 노선의 휴게소별 충전기 + 평균 출력</h3>
+            <p class="chart-desc">
+              막대 길이 = 충전기 수, 색 = 평균 출력 (녹색 200kW+, 노란색
+              100~200kW, 파란색 그 이하). tooltip 에 운영자 + 주소.
+            </p>
+          </div>
+          <div class="chart-sort">
+            <label for="station-sort">정렬:</label>
+            <select id="station-sort">
+              <option value="corridor">남 → 북 (지리)</option>
+              <option value="corridor-rev">북 → 남 (지리 역순)</option>
+              <option value="chargers-desc">충전기 많은 순</option>
+              <option value="chargers-asc">충전기 적은 순</option>
+              <option value="output-desc">평균 출력 높은 순</option>
+              <option value="output-asc">평균 출력 낮은 순</option>
+            </select>
+          </div>
         </div>
         <div class="chart-wrap chart-wrap-tall">
           <canvas id="chart-stations"></canvas>

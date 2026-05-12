@@ -153,6 +153,7 @@ function buildMap() {
 
 function buildPopupHtml(s, codes) {
   const sido = codes.sido[s.zcode] || s.zcode || "";
+  const detailUrl = `./station.html?id=${encodeURIComponent(s.stat_id)}`;
   const lines = [
     `<div class="popup-title">${escapeHtml(s.stat_nm || s.stat_id)}</div>`,
     `<div class="popup-meta">${escapeHtml(sido)}${s.highway ? " · " + escapeHtml(s.highway) : ""}</div>`,
@@ -163,6 +164,7 @@ function buildPopupHtml(s, codes) {
     s.addr
       ? `<div class="popup-addr">${escapeHtml(s.addr)}</div>`
       : "",
+    `<div class="popup-action"><a href="${detailUrl}">상세 보기 →</a></div>`,
   ];
   return lines.join("");
 }

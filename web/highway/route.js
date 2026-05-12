@@ -237,6 +237,26 @@ function sortStationsByCorridor(stations) {
   );
 }
 
+// 휴게소 정렬 — 사용자 선택 정렬 키 기준
+function sortStations(stations, sortKey) {
+  const corridor = sortStationsByCorridor(stations);
+  switch (sortKey) {
+    case "corridor-rev":
+      return corridor.slice().reverse();
+    case "chargers-desc":
+      return [...stations].sort((a, b) => b.chargers - a.chargers);
+    case "chargers-asc":
+      return [...stations].sort((a, b) => a.chargers - b.chargers);
+    case "output-desc":
+      return [...stations].sort((a, b) => (b.avg_kw || 0) - (a.avg_kw || 0));
+    case "output-asc":
+      return [...stations].sort((a, b) => (a.avg_kw || 0) - (b.avg_kw || 0));
+    case "corridor":
+    default:
+      return corridor;
+  }
+}
+
 function computeAdjacentDistances(sortedStations) {
   const pairs = [];
   for (let i = 1; i < sortedStations.length; i++) {
@@ -366,8 +386,19 @@ function renderInsights(hw, stations, distances, ops, overall, outputThis, outpu
 }
 
 function renderStations(sorted, codes) {
-  const labels = sorted.map((s) => (s.stat_nm || s.stat_id).slice(0, 24));
-  new Chart($("chart-stations").getContext("2d"), {
+  // 휴게소 수에 비례해 차트 높이 동적 조정 — 라벨 겹침 방지.
+  // row 당 최소 22px 확보. 5개 = ~150px, 50개 = ~1100px.
+  const ROW_PX = 22;
+  const MIN_HEIGHT = 360;
+  const wrap = $("chart-stations").parentElement;
+  wrap.style.height = Math.max(MIN_HEIGHT, sorted.length * ROW_PX + 40) + "px";
+
+  const labels = sorted.map((s) => {
+    const name = s.stat_nm || s.stat_id;
+    return name.length > 26 ? name.slice(0, 25) + "…" : name;
+  });
+
+  const chart = new Chart($("chart-stations").getContext("2d"), {
     type: "bar",
     data: {
       labels,
@@ -382,15 +413,34 @@ function renderStations(sorted, codes) {
           return C.textDim;
         }),
         borderWidth: 0,
+        categoryPercentage: 0.85,
+        barPercentage: 0.9,
       }],
     },
     options: {
       indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false,
+      layout: { padding: { right: 20, top: 4, bottom: 4 } },
       scales: {
         x: { beginAtZero: true, ticks: { callback: (v) => fmtInt(v) }, grid: { color: C.grid } },
-        y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 11 } } },
+        y: {
+          grid: { display: false },
+          ticks: { autoSkip: false, font: { size: 11 } },
+        },
+      },
+      // 클릭 시 휴게소 상세 페이지로 drill-down
+      onClick: (_evt, elements) => {
+        if (elements && elements.length > 0) {
+          const idx = elements[0].index;
+          const s = sorted[idx];
+          if (s && s.stat_id) {
+            location.href = `./station.html?id=${encodeURIComponent(s.stat_id)}`;
+          }
+        }
+      },
+      onHover: (evt, elements) => {
+        evt.native.target.style.cursor = elements.length > 0 ? "pointer" : "";
       },
       plugins: {
         legend: { display: false },
@@ -404,6 +454,8 @@ function renderStations(sorted, codes) {
                 `DC 비율: ${fmtPct(s.dc_ratio, 1)}`,
                 `운영자: ${op}`,
                 `주소: ${(s.addr || "").slice(0, 40)}`,
+                "",
+                "클릭 → 휴게소 상세",
               ];
             },
           },
@@ -563,6 +615,22 @@ function destroyCharts() {
   }
 }
 
+// 휴게소 차트만 재렌더 (정렬 변경 시) — 다른 차트는 그대로
+function rerenderStations() {
+  if (!state.stations) return;
+  const inst = Chart.getChart("chart-stations");
+  if (inst) inst.destroy();
+  const sorted = sortStations(state.stations, state.sortKey);
+  renderStations(sorted, state.codes);
+}
+
+// module-level state — 정렬 변경 시 차트 재렌더용
+const state = {
+  stations: null,
+  codes: null,
+  sortKey: "corridor",
+};
+
 // 노선 변경 시 모든 차트 재렌더
 async function loadRoute(conn, hw, codes, overall, outputAll) {
   destroyCharts();
@@ -584,12 +652,18 @@ async function loadRoute(conn, hw, codes, overall, outputAll) {
     throw new Error(`${hw} 휴게소 0개. 데이터 확인 필요.`);
   }
 
-  const sorted = sortStationsByCorridor(stations);
-  const distances = computeAdjacentDistances(sorted);
+  // corridor 정렬 (지리) 은 거리 계산에 항상 필요. 사용자 정렬 키는 차트 표시용.
+  const corridorSorted = sortStationsByCorridor(stations);
+  const distances = computeAdjacentDistances(corridorSorted);
+  const sortedForChart = sortStations(stations, state.sortKey);
+
+  // 정렬 변경 핸들러를 위해 module state 갱신
+  state.stations = stations;
+  state.codes = codes;
 
   renderKpi(stations, distances, overall);
   renderInsights(hw, stations, distances, ops, overall, outputThis, outputAll);
-  renderStations(sorted, codes);
+  renderStations(sortedForChart, codes);
   renderOutputCompare(outputThis, outputAll);
   renderOps(ops, codes);
   renderSpacing(distances);
@@ -660,6 +734,15 @@ async function main() {
         showError(err);
       }
     });
+
+    // 정렬 변경 시 휴게소 차트만 재렌더
+    const sortSel = $("station-sort");
+    if (sortSel) {
+      sortSel.addEventListener("change", (e) => {
+        state.sortKey = e.target.value;
+        rerenderStations();
+      });
+    }
   } catch (e) {
     showError(e);
   }

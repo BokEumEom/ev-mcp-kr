@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>고속도로 휴게소 상세 — ev-mcp</title>
+    <meta
+      name="description"
+      content="단일 휴게소의 모든 충전기·상태·운영자·위치를 한 화면에. drill-down 페이지."
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <div>
+            <nav class="breadcrumb">
+              <a href="../">← 전체</a>
+              <span class="breadcrumb-sep">/</span>
+              <a href="./">고속도로</a>
+              <span class="breadcrumb-sep">/</span>
+              <a href="./route.html">노선</a>
+            </nav>
+            <h1 id="page-title">휴게소 상세</h1>
+            <p class="subtitle" id="page-subtitle">
+              <code>kind_detail = 'C001'</code> · drill-down
+            </p>
+            <div class="route-picker">
+              <label for="station-input">휴게소 검색:</label>
+              <input
+                list="station-options"
+                id="station-input"
+                placeholder="휴게소 이름 일부 입력…"
+                autocomplete="off"
+              />
+              <datalist id="station-options"></datalist>
+            </div>
+          </div>
+          <div class="header-actions">
+            <div class="nav-group">
+              <a href="./" class="nav-link">차트</a>
+              <a href="./map.html" class="nav-link">지도</a>
+              <a href="./operators.html" class="nav-link">운영자</a>
+              <a href="./activity.html" class="nav-link">활성도</a>
+              <a href="./route.html" class="nav-link">노선</a>
+              <a href="./compare.html" class="nav-link">비교</a>
+            </div>
+            <div class="badge highway" id="header-badge" hidden>
+              <span class="badge-dot"></span>
+              <span id="header-snapshot">…</span>
+            </div>
+          </div>
+        </div>
+        <div class="meta">
+          <span id="snapshot-date">로딩 중…</span>
+          <span class="dot">·</span>
+          <span id="row-count">—</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="status" class="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="status-text">DuckDB-WASM 초기화 중…</span>
+      </section>
+
+      <!-- 기본 정보 카드 -->
+      <section class="info-card" id="info-card" hidden>
+        <div class="info-main">
+          <div class="info-title" id="info-name">—</div>
+          <div class="info-addr" id="info-addr">—</div>
+        </div>
+        <div class="info-meta-grid">
+          <div class="info-meta">
+            <div class="info-meta-label">운영자</div>
+            <div class="info-meta-value" id="info-operator">—</div>
+          </div>
+          <div class="info-meta">
+            <div class="info-meta-label">고객센터</div>
+            <div class="info-meta-value" id="info-call">—</div>
+          </div>
+          <div class="info-meta">
+            <div class="info-meta-label">운영 시간</div>
+            <div class="info-meta-value" id="info-usetime">—</div>
+          </div>
+          <div class="info-meta">
+            <div class="info-meta-label">주차 무료</div>
+            <div class="info-meta-value" id="info-parking">—</div>
+          </div>
+          <div class="info-meta">
+            <div class="info-meta-label">설치 연도</div>
+            <div class="info-meta-value" id="info-year">—</div>
+          </div>
+          <div class="info-meta">
+            <div class="info-meta-label">노선</div>
+            <div class="info-meta-value" id="info-highway">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- KPI -->
+      <section class="kpi-grid" id="kpi-grid" hidden>
+        <div class="kpi">
+          <div class="kpi-label">충전기</div>
+          <div class="kpi-value" id="kpi-chargers">—</div>
+          <div class="kpi-sub">대</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">평균 출력</div>
+          <div class="kpi-value" id="kpi-avg-kw">—</div>
+          <div class="kpi-sub">kW</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">DC 비율</div>
+          <div class="kpi-value" id="kpi-dc">—</div>
+          <div class="kpi-sub" id="kpi-dc-sub">급속</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">사용 가능</div>
+          <div class="kpi-value" id="kpi-available">—</div>
+          <div class="kpi-sub" id="kpi-available-sub">stat='2' 충전대기</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">현재 사용중</div>
+          <div class="kpi-value" id="kpi-charging">—</div>
+          <div class="kpi-sub">stat='3'</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">가장 최근 활동</div>
+          <div class="kpi-value mono-small" id="kpi-latest">—</div>
+          <div class="kpi-sub" id="kpi-latest-sub">—</div>
+        </div>
+      </section>
+
+      <!-- 분포 차트 (상태 + 출력) + 지도 -->
+      <h2 class="section-title" id="dist-title" hidden>구성 + 위치</h2>
+
+      <div class="chart-grid">
+        <section class="chart-card" id="card-status" hidden>
+          <div class="chart-header">
+            <h3>충전기 상태 분포</h3>
+            <p class="chart-desc">
+              <code>stat</code> 코드별 충전기 수.
+            </p>
+          </div>
+          <div class="chart-wrap chart-wrap-sm">
+            <canvas id="chart-status"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card" id="card-output" hidden>
+          <div class="chart-header">
+            <h3>출력(kW) 분포</h3>
+            <p class="chart-desc">
+              충전기별 출력 분포.
+            </p>
+          </div>
+          <div class="chart-wrap chart-wrap-sm">
+            <canvas id="chart-output"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <section class="chart-card" id="card-map" hidden>
+        <div class="chart-header">
+          <h3>위치 + 동일 노선 인접 휴게소</h3>
+          <p class="chart-desc">
+            중앙 큰 마커 = 이 휴게소. 작은 회색 마커 = 같은 노선 내 인접 휴게소.
+            클릭으로 다른 휴게소 detail 페이지로 이동.
+          </p>
+        </div>
+        <div class="map-mini" id="map-mini"></div>
+      </section>
+
+      <!-- 충전기 list -->
+      <h2 class="section-title" id="chargers-title" hidden>충전기 list</h2>
+
+      <section class="chart-card" id="card-chargers-table" hidden>
+        <div class="chart-header chart-header-row">
+          <div>
+            <h3>충전기 N대 — 모든 상세</h3>
+            <p class="chart-desc">
+              컬럼 의미: <code>stat</code> = 상태 코드 (2=대기, 3=충전중, 4=운영중지,
+              5=점검중, 9=상태미확인), <code>kw</code> = 출력, <code>last_tsdt</code>
+              = 마지막 충전 시작 시각.
+            </p>
+          </div>
+          <div class="chart-sort">
+            <label for="charger-sort">정렬:</label>
+            <select id="charger-sort">
+              <option value="id">충전기 번호</option>
+              <option value="kw-desc">출력 높은 순</option>
+              <option value="kw-asc">출력 낮은 순</option>
+              <option value="recent">최근 사용 순</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="ranking-table" id="chargers-table">
+            <thead>
+              <tr>
+                <th>충전기</th>
+                <th>타입</th>
+                <th class="num">kW</th>
+                <th>상태</th>
+                <th>방식</th>
+                <th>마지막 충전</th>
+                <th>마지막 종료</th>
+              </tr>
+            </thead>
+            <tbody id="chargers-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="error-panel" class="error-panel" hidden>
+        <h3>로드 실패</h3>
+        <pre id="error-message"></pre>
+        <p>
+          프로젝트 루트에서 <code>python -m http.server 8000</code> 실행 후
+          <code>http://localhost:8000/web/highway/station.html?id=...</code>.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>
+          데이터: <a
+            href="https://www.data.go.kr/data/15076352/openapi.do"
+            target="_blank"
+            rel="noopener"
+          >한국환경공단 OpenAPI</a>
+        </div>
+        <div>
+          ev-mcp Phase 10 ·
+          <a href="../">전체</a> · <a href="./">차트</a> ·
+          <a href="./map.html">지도</a> · <a href="./operators.html">운영자</a> ·
+          <a href="./activity.html">활성도</a> · <a href="./route.html">노선</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+      crossorigin="anonymous"
+    ></script>
+    <script type="module" src="./station.js"></script>
+  </body>
+</html>

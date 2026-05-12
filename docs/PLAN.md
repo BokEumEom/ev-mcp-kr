@@ -313,7 +313,10 @@ ev_mcp/
 **롤백:** ADR-001 의 "롤백 계획" 그대로. Stage 단위 가역.
 
 **진행 이력:**
-- 2026-05-11 — Stage 10.2 + 10.3 완료. `src/ev_mcp/analytics.py`, `tools/analytics_operator_health.py`, `tools/analytics_regional_density.py` + 18개 새 테스트. 전체 verify 그린 (pytest 122 / ruff clean / mypy strict clean). 로컬 Parquet 위에서 동작 확인. Stage 10.1 (Workers R2 export) 은 사용자 R2 준비 후 별도 사이클.
+- 2026-05-11 — Stage 10.2 + 10.3 완료. `src/ev_mcp/analytics.py`, `tools/analytics_operator_health.py`, `tools/analytics_regional_density.py` + 18개 새 테스트. 전체 verify 그린 (pytest 122 / ruff clean / mypy strict clean). 로컬 Parquet 위에서 동작 확인.
+- 2026-05-11 — Stage 10.4 데이터 품질 수정. 자연어 스모크에서 `stat='9'` (상태미확인) 이 비가동이 아닌 모니터링 미연동임을 발견 → `DOWNTIME_CODES=('1','4','5')` + `UNMONITORED_CODE='9'` 분리. ADR-001 운영 결과 섹션 + PHASE10 보고서 박제.
+- 2026-05-11 ~ 2026-05-12 — Stage 10.5 web 대시보드 (ADR 범위 밖 자매 작업). 8 페이지 DuckDB-WASM 인터랙티브 분석 도구. `web/` 디렉토리 신설. 자세한 산출물은 `docs/PHASE10.md` 의 Stage 10.5 섹션 + `web/README.md` 참조.
+- 2026-05-12 — Stage 10.1 (Workers R2 export) 미진행. 사용자 R2 준비 후 별도 사이클 예정.
 
 ---
 

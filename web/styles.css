@@ -360,6 +360,200 @@ h1 {
   color: #0a0c0f;
 }
 
+/* ─── Compare page ─── */
+
+.compare-controls {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.type-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 3px;
+  width: fit-content;
+}
+.tab-btn {
+  background: transparent;
+  color: var(--text-dim);
+  border: 0;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.is-active {
+  background: var(--bg-card);
+  color: var(--accent);
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.picker > label { font-weight: 500; }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 12px;
+  background: rgba(110, 231, 183, 0.12);
+  border: 1px solid rgba(110, 231, 183, 0.3);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+.chip-x {
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  margin-left: 2px;
+  line-height: 1;
+}
+.chip-x:hover { color: var(--danger); }
+
+.picker-add select {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.presets {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+}
+.presets-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.preset-btn {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.preset-btn:hover {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+.chart-wrap-radar {
+  position: relative;
+  height: 420px;
+}
+
+/* KPI 비교 표 색상 강조 */
+.compare-table .cell-best {
+  color: var(--accent);
+  font-weight: 600;
+  background: rgba(110, 231, 183, 0.07);
+}
+.compare-table .cell-worst {
+  color: var(--danger);
+  background: rgba(248, 113, 113, 0.07);
+}
+.legend-best { color: var(--accent); font-weight: 600; }
+.legend-worst { color: var(--danger); font-weight: 600; }
+
+/* ─── Station detail page ─── */
+
+.info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 24px;
+  margin-bottom: 20px;
+}
+.info-main {
+  margin-bottom: 18px;
+}
+.info-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+.info-addr {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+.info-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.info-meta-label {
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.info-meta-value {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* mini map */
+.map-mini {
+  height: 380px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.chart-wrap-sm {
+  position: relative;
+  height: 280px;
+}
+
+/* monospace + 작은 글씨 (KPI value 등) */
+.kpi-value.mono-small {
+  font-size: 14px;
+  letter-spacing: 0;
+}
+td.mono-cell {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
 /* ─── Map page ─── */
 .map-main {
   max-width: 100%;
@@ -537,6 +731,17 @@ h1 {
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.4;
+}
+.popup-action {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  text-align: right;
+}
+.popup-action a {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* Leaflet tooltip dark */
@@ -760,6 +965,41 @@ main {
   margin: 0 0 6px;
   font-size: 16px;
   font-weight: 600;
+}
+
+/* 차트 헤더에 정렬 컨트롤 우측 정렬용 row 레이아웃 */
+.chart-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.chart-header-row > div:first-child {
+  flex: 1;
+  min-width: 280px;
+}
+.chart-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.chart-sort select {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  cursor: pointer;
+}
+.chart-sort select:focus {
+  outline: none;
+  border-color: var(--accent-dim);
 }
 
 .chart-desc {

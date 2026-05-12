@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>고속도로 비교 분석 — ev-mcp</title>
+    <meta
+      name="description"
+      content="운영자/노선을 동시 비교해 차이를 자동 발견하는 인사이트 도구."
+    />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <div>
+            <nav class="breadcrumb">
+              <a href="../">← 전체</a>
+              <span class="breadcrumb-sep">/</span>
+              <a href="./">고속도로</a>
+            </nav>
+            <h1 id="page-title">비교 분석</h1>
+            <p class="subtitle">
+              <code>kind_detail = 'C001'</code> · 2~4개 entity 를 동시 비교 ·
+              차이는 자동으로 찾아드립니다
+            </p>
+
+            <div class="compare-controls">
+              <div class="type-tabs" role="tablist">
+                <button class="tab-btn is-active" data-type="operator">운영자</button>
+                <button class="tab-btn" data-type="highway">노선</button>
+              </div>
+
+              <div class="picker">
+                <label>비교 대상:</label>
+                <div class="chips" id="entity-chips"></div>
+                <div class="picker-add">
+                  <select id="entity-select">
+                    <option value="">+ 추가</option>
+                  </select>
+                </div>
+                <div class="presets">
+                  <span class="presets-label">추천:</span>
+                  <button class="preset-btn" data-preset="top4">top 4</button>
+                  <button class="preset-btn" data-preset="newcomers">신규 진입자</button>
+                  <button class="preset-btn" data-preset="incumbents">기존 강자</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="header-actions">
+            <div class="nav-group">
+              <a href="./" class="nav-link">차트</a>
+              <a href="./map.html" class="nav-link">지도</a>
+              <a href="./operators.html" class="nav-link">운영자</a>
+              <a href="./activity.html" class="nav-link">활성도</a>
+              <a href="./route.html" class="nav-link">노선</a>
+              <a href="./station.html" class="nav-link">휴게소</a>
+            </div>
+            <div class="badge highway" id="header-badge" hidden>
+              <span class="badge-dot"></span>
+              <span id="header-snapshot">…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="status" class="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="status-text">DuckDB-WASM 초기화 중…</span>
+      </section>
+
+      <!-- 자동 인사이트 ⭐ 핵심 -->
+      <section class="insights" id="insights" hidden>
+        <h2 class="section-title">자동으로 찾은 차이</h2>
+        <div class="insight-grid" id="insight-grid"></div>
+      </section>
+
+      <!-- Radar + KPI 표 -->
+      <h2 class="section-title" id="overview-title" hidden>다차원 비교</h2>
+
+      <div class="chart-grid">
+        <section class="chart-card" id="card-radar" hidden>
+          <div class="chart-header">
+            <h3>Radar — 6 차원 강도</h3>
+            <p class="chart-desc">
+              각 축은 0~100 정규화 (해당 차원 max 가 100). 면적이 클수록 종합 우수,
+              모양으로 전략 파악 (균형/특화).
+            </p>
+          </div>
+          <div class="chart-wrap chart-wrap-radar">
+            <canvas id="chart-radar"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card" id="card-kpi-table" hidden>
+          <div class="chart-header">
+            <h3>KPI 표</h3>
+            <p class="chart-desc">
+              각 행에서 최고는 <span class="legend-best">녹색</span>, 최저는
+              <span class="legend-worst">붉은색</span>. 격차 크기를 한 눈에.
+            </p>
+          </div>
+          <div class="table-wrap">
+            <table class="ranking-table compare-table" id="compare-table">
+              <thead>
+                <tr id="compare-thead-row"></tr>
+              </thead>
+              <tbody id="compare-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Drill-down 차트들 -->
+      <h2 class="section-title" id="drilldown-title" hidden>분포 비교</h2>
+
+      <div class="chart-grid">
+        <section class="chart-card" id="card-dist-1" hidden>
+          <div class="chart-header">
+            <h3 id="dist-1-title">분포 1</h3>
+            <p class="chart-desc" id="dist-1-desc">—</p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-dist-1"></canvas>
+          </div>
+        </section>
+
+        <section class="chart-card" id="card-dist-2" hidden>
+          <div class="chart-header">
+            <h3 id="dist-2-title">분포 2</h3>
+            <p class="chart-desc" id="dist-2-desc">—</p>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chart-dist-2"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <section class="chart-card" id="card-dist-3" hidden>
+        <div class="chart-header">
+          <h3 id="dist-3-title">분포 3</h3>
+          <p class="chart-desc" id="dist-3-desc">—</p>
+        </div>
+        <div class="chart-wrap chart-wrap-tall">
+          <canvas id="chart-dist-3"></canvas>
+        </div>
+      </section>
+
+      <section id="error-panel" class="error-panel" hidden>
+        <h3>로드 실패</h3>
+        <pre id="error-message"></pre>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>
+          데이터: <a
+            href="https://www.data.go.kr/data/15076352/openapi.do"
+            target="_blank"
+            rel="noopener"
+          >한국환경공단 OpenAPI</a>
+        </div>
+        <div>
+          ev-mcp Phase 10 · 비교 = 차이의 자동 발견 ·
+          <a href="../">전체</a> · <a href="./">고속도로</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script type="module" src="./compare.js"></script>
+  </body>
+</html>
