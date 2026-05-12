@@ -26,8 +26,11 @@ python -m mypy src/
 - **Phase 5 (완료):** PRIVACY/SUPPORT 문서, README 등록 가이드 + 사용 예시 3개, MCP 인스펙터 스모크. → `docs/PHASE5.md`
 - **Phase 6 (완료):** SQLite 영속 store + sync 스크립트 분리. in-memory 24h 캐시 → `data/chargers.db`. 테스트 102건. → `docs/PHASE6.md`
 - **Phase 7 (완료):** MCPB 번들 (`ev-mcp.mcpb`) — Claude Desktop 직접 설치. stdio CLI + `ev-mcp-sync` 콘솔 + manifest.json. → `docs/PHASE7.md`
+- **Phase 9 (완료):** TypeScript Cloudflare Workers 포팅 (`workers/`). 두-DO 아키텍처 (per-session McpAgent + 단일 글로벌 InventoryStore), cron sync, smart upsert (rows-written cap 회피). → `docs/PHASE9.md`
+- **Phase 10 Stage 10.2~10.5 (완료):** DuckDB 분석 사이드카 (ADR-001). `src/ev_mcp/analytics.py` + 새 MCP 툴 2개 (`analyze_operator_health`, `regional_density`) + 인터랙티브 web 대시보드 8 페이지. Stage 10.4 데이터 품질 수정 (`stat='9'` 미연동 분리). → `docs/PHASE10.md`, `docs/adr/ADR-001-duckdb-analytics.md`, `web/README.md`
+- **Phase 10 Stage 10.1 (미진행):** Workers R2 일별 Parquet export. 사용자 R2 준비 후 별도 사이클.
 
-전체 계획서: `docs/PLAN.md`
+전체 계획서: `docs/PLAN.md`. ADR: `docs/adr/`.
 
 ## 워크플로우
 
@@ -55,15 +58,22 @@ python -m mypy src/
 자세한 구조와 협업 규약은 `docs/ARCHITECTURE.md` 참고. 핵심만:
 
 ```text
-src/ev_mcp/        # 패키지 본체
+src/ev_mcp/        # Python 패키지 본체 (Phase 1~7, 10)
   client.py        # data.go.kr 호출
   models.py        # Pydantic 타입 (스펙 1:1)
-  settings.py      # 환경변수 로더
+  settings.py      # 환경변수 로더 (Phase 10 에서 R2/snapshot 필드 추가)
+  store.py         # SQLite 영속 store (Phase 6)
+  analytics.py     # DuckDB 분석 사이드카 (Phase 10)
   codes/*.json     # 공통 코드 테이블 (정적 데이터)
-  tools/           # MCP 툴 (Phase 2에서 생성)
-tests/             # pytest + respx
+  tools/           # MCP 툴 9개 (Phase 2 + Phase 10 분석 툴 2개)
+tests/             # pytest + respx (123건)
 scripts/           # 일회성 스크립트 (코드 테이블 추출 등)
-docs/              # 설계·운영 문서
+docs/              # 설계·운영 문서 (PHASE1~10, ADR)
+  adr/             # Architecture Decision Records (Phase 10에서 신설)
+workers/           # Cloudflare Workers + Durable Objects (Phase 9, TypeScript)
+web/               # 인터랙티브 분석 대시보드 8 페이지 (Phase 10 Stage 10.5)
+data/              # SQLite 영속 store (gitignore, Phase 6+)
+scratch/           # PoC + Parquet 스냅샷 (gitignore, Phase 10)
 logs/              # 런타임 로그 (gitignore됨)
 ```
 

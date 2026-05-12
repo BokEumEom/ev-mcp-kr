@@ -13,13 +13,27 @@
 
 자세한 설계와 진행 상황은 `docs/` 참고:
 
-- [`docs/PLAN.md`](docs/PLAN.md) — 전체 계획서
+- [`docs/PLAN.md`](docs/PLAN.md) — 전체 계획서 (Phase 1~10)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 디렉터리 구조와 협업 규약
-- [`docs/PHASE1.md`](docs/PHASE1.md), [`PHASE2.md`](docs/PHASE2.md), [`PHASE3.md`](docs/PHASE3.md), [`PHASE4.md`](docs/PHASE4.md) — Phase 별 보고서
+- [`docs/PHASE1.md`](docs/PHASE1.md) ~ [`PHASE10.md`](docs/PHASE10.md) — Phase 별 보고서
+- [`docs/adr/`](docs/adr/) — Architecture Decision Records (ADR-001: DuckDB 분석 사이드카)
 - [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — 8 단계 협업 사이클
 - [`docs/PRIVACY.md`](docs/PRIVACY.md), [`docs/SUPPORT.md`](docs/SUPPORT.md) — Claude 디렉터리 제출 필수 문서
+- [`web/README.md`](web/README.md) — 인터랙티브 분석 대시보드 8 페이지 (Phase 10 Stage 10.5)
+- [`workers/README.md`](workers/README.md) — Cloudflare Workers + Durable Objects 포팅 (Phase 9)
 
-## 노출되는 7 개 도구
+## 진행 상황 요약
+
+| Phase | 상태 | 핵심 산출물 |
+|---|---|---|
+| 1~5 | ✅ | 골격 / 캐시 / FastMCP / Docker / Render / 제출 패키지 |
+| 6 | ✅ | SQLite 영속 store + sync 분리 |
+| 7 | ✅ | MCPB 번들 (Claude Desktop 직접 설치) |
+| 9 | ✅ | TypeScript Cloudflare Workers 포팅 (DO SQL + cron sync) |
+| 10 Stage 10.2~10.5 | ✅ | DuckDB 분석 사이드카 + 새 MCP 툴 2개 + 인터랙티브 web 대시보드 8 페이지 |
+| 10 Stage 10.1 | ⏳ | Workers R2 일별 Parquet export (사용자 R2 준비 후) |
+
+## 노출되는 9 개 MCP 도구
 
 | 도구 | 설명 |
 |---|---|
@@ -30,8 +44,25 @@
 | `get_station_details` | 충전소 ID 의 모든 충전기 + 메타 |
 | `recent_status_changes` | 최근 N 분(1~10) 상태 변경 |
 | `lookup_codes` | 공통 코드 테이블 (sido / sigungu / charger_type / stat / busi_id / kind) |
+| `analyze_operator_health` | 운영자별 비가동률 + 미연동률 top N (Phase 10, DuckDB 사이드카) |
+| `regional_density` | 시도/시군구 단위 충전기 밀도 + DC 비율 top N (Phase 10) |
 
 추가로 코드 테이블은 MCP **resource template** `codes://{category}` 로도 노출됩니다.
+
+## 부가 도구 — 인터랙티브 web 대시보드
+
+Phase 10 Stage 10.5 에서 추가된 **순수 정적 분석 도구**. DuckDB-WASM + Chart.js + Leaflet 으로 브라우저가 Parquet 을 직접 분석.
+
+- **메인:** 전체 508k 충전기 — KPI 8, 차트 7, 자동 인사이트
+- **고속도로 deep dive (6 페이지):** 차트 / 지도(Leaflet 622 마커) / 운영자 / 활성도 / 노선 / 휴게소 / 비교(radar + 자동 인사이트)
+
+```bash
+cd /home/bokeum/ai/ev_mcp
+python -m http.server 8000
+# 브라우저: http://localhost:8000/web/
+```
+
+자세한 사용법은 [`web/README.md`](web/README.md).
 
 ## 빠른 시작 (로컬)
 

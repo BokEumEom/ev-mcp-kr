@@ -102,17 +102,30 @@ ev_mcp/
 - 외부 API 응답을 그대로 사용자에게 노출할 때, 시크릿이 섞여 있지 않은지 확인.
 - 새 외부 API 키가 필요하면 사용자에게 먼저 문의 → `.env.example` 에 빈 값 추가 → `Settings` 에 `SecretStr` 필드 추가.
 
-## 7. 의사결정 기록(가벼운 ADR)
+## 7. 의사결정 기록 (ADR + Phase 보고서)
 
-큰 의사결정은 `docs/PHASE{N}.md` 에 인라인으로 기록합니다. 별도의 ADR 디렉터리는 만들지 않습니다 (오버킬). 핵심은 **계획서**(plan file)와 **Phase 보고서** 두 곳을 보면 의사결정 흐름이 보이도록 한다는 것.
+큰 의사결정은 두 곳에 기록합니다:
+
+1. **`docs/PHASE{N}.md`** — Phase 별 결과 보고서 (인라인 의사결정 + 산출물)
+2. **`docs/adr/ADR-{NNN}-{title}.md`** — Phase 10 부터 신설. 외부 시스템 도입·폐기·교체 같이 6개월 후 "왜?" 라고 물을 만한 결정 박제. 결정 근거 + 대안 비교 + 롤백 계획. 인덱스는 `docs/adr/README.md`.
+
+핵심은 **계획서** + **Phase 보고서** + **ADR** 세 곳을 보면 의사결정 흐름이 보이도록 한다는 것.
 
 이미 정해진 큰 결정들:
 
-- **하스팅:** Render. CF Workers Python은 베타라 FastMCP 부적합 (계획서 Premise 4).
+- **하스팅:** Render (Python). CF Workers 는 Phase 9 에서 TypeScript 로 별도 포팅됨.
 - **인증:** No-auth MCP. 데이터가 공공이므로 OAuth 불필요.
-- **언어/프레임워크:** Python 3.12 + FastMCP 2.x.
-- **도구 디자인:** 7개 가치 추가형 툴 (raw passthrough 아님).
-- **캐시:** in-memory only (v1). 멀티 인스턴스 필요해지면 Redis.
+- **언어/프레임워크:** Python 3.12 + FastMCP 2.x (메인) / TypeScript + agents-mcp (Workers).
+- **도구 디자인:** 9개 가치 추가형 툴 (raw passthrough 아님). Phase 10 에서 분석 툴 2개 추가.
+- **저장소:** in-memory cache (Phase 2) → SQLite 영속 (Phase 6) → DuckDB 분석 사이드카 (Phase 10, ADR-001).
+- **시각화:** 인터랙티브 web 대시보드 (Phase 10 Stage 10.5). 순수 정적 자산.
+
+## 8. 부가 디렉토리 (Phase 6+ 추가)
+
+- **`workers/`** (Phase 9) — Cloudflare Workers + Durable Objects TypeScript 포팅. `src/` 와 독립 sister codebase. 두-DO 아키텍처. vitest.
+- **`web/`** (Phase 10 Stage 10.5) — DuckDB-WASM + Chart.js + Leaflet 인터랙티브 분석 대시보드 8 페이지. 빌드 step 없음. 자세히는 `web/README.md`.
+- **`scratch/`** (Phase 10, gitignore) — PoC + Parquet 스냅샷.
+- **`data/`** (Phase 6, gitignore) — SQLite 영속 store (`chargers.db`).
 
 ## 8. AI에게 주는 명시적 신호
 
