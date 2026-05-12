@@ -15,118 +15,252 @@
           <span>문서</span>
         </nav>
         <div class="tools">
-          <a href="https://github.com" rel="noopener" hidden>저장소</a>
+          <a href="../../README.md" download>README.md</a>
         </div>
       </div>
     </header>
 
     <main class="doc-main">
-      <article class="doc-body" style="display:block">
-        <h1>ev-mcp 문서 포털</h1>
-        <p>
-          한국환경공단 EV 충전소 OpenAPI v1.23 을 Claude 원격 MCP 커넥터로 노출하는
-          프로젝트. 각 문서는 원본 markdown 을 브라우저에서 직접 렌더링합니다 —
-          서버 빌드 step 0.
+      <section class="masthead">
+        <div class="eyebrow">문서 포털 · ev-mcp</div>
+        <h1 class="doc-title">한국 EV 충전소 <em>MCP</em> 프로젝트 문서</h1>
+        <p class="intro">
+          한국환경공단 OpenAPI v1.23 을 Claude 원격 MCP 커넥터로 노출하는 프로젝트.
+          각 문서는 원본 markdown 을 브라우저에서 직접 렌더링 — 서버 빌드 step 0.
         </p>
-      <h2 class="doc-section-title">프로젝트 개요</h2>
-      <div class="doc-index-grid">
-        <a class="doc-card" href="readme.html">
-          <div class="doc-card-title">ev-mcp — 한국 EV 충전소 정보 MCP 서버</div>
-          <div class="doc-card-desc">한국환경공단의 전기자동차 충전소 정보 OpenAPI v1.23 을 Claude 와 호환되는 원격 MCP 커넥터로 노출합니다. Claude 에서 자연어로 질문하면 7 개의 도구가 자동으로 호출되어 답을 만듭니다.</div>
-        </a>
-        <a class="doc-card" href="plan.html">
-          <div class="doc-card-title">Plan: Korean EV Charging Station MCP Server (Claude Remote Connector)</div>
-          <div class="doc-card-desc">Date: 2026-04-30 Working dir: /home/bokeum/ai/ev_mcp Source spec: 한국환경공단_전기자동차 충전소 정보_OpenAPI활용가이드_v1.23.docx Reference: Claude Remote MCP Server Submission Guide (support.claude.com/ko/articles/12…</div>
-        </a>
-        <a class="doc-card" href="architecture.html">
-          <div class="doc-card-title">Anatomy of a Claude Code Project — ev-mcp</div>
-          <div class="doc-card-desc">이 프로젝트는 Claude Code(또는 다른 AI 코딩 보조 도구)와 사람이 같이 작업하는 것을 전제로 디렉터리를 짰습니다. 어디에 무엇이 있고, AI가 어떤 파일을 어떤 순서로 읽어야 하는지를 정리합니다.</div>
-        </a>
-        <a class="doc-card" href="workflow.html">
-          <div class="doc-card-title">Workflow — Phase 단위 협업 사이클</div>
-          <div class="doc-card-desc">이 프로젝트는 사람과 AI 가 같이 작업하면서, 각 Phase 마다 문서 → 구현 → 리뷰 → 검증 → 보고 가 일관되게 흐르도록 만들어졌습니다.</div>
-        </a>
-      </div>
-      <h2 class="doc-section-title">Phase 보고서</h2>
-      <div class="doc-index-grid">
-        <a class="doc-card" href="phase1.html">
-          <div class="doc-card-title">Phase 1 보고 — 골격 + 클라이언트 + 모델 + 코드 테이블</div>
-          <div class="doc-card-desc">기간: 2026-04-30 범위: 계획서 Phase 1 (Skeleton &amp; client) 검증: pytest 11건 통과, ruff 클린, mypy --strict 클린.</div>
-        </a>
-        <a class="doc-card" href="phase2.html">
-          <div class="doc-card-title">Phase 2 보고 — 캐시, 지오코더, 7개 MCP 툴</div>
-          <div class="doc-card-desc">기간: 2026-04-30 범위: 계획서 Phase 2 (Cache &amp; tools) 검증: pytest 68건 통과, ruff 클린, mypy --strict 클린.</div>
-        </a>
-        <a class="doc-card" href="phase3.html">
-          <div class="doc-card-title">Phase 3 보고 — FastMCP 서버 와이어링</div>
-          <div class="doc-card-desc">기간: 2026-04-30 범위: 계획서 Phase 3 (MCP server wiring) 검증: pytest 78건 통과, ruff 클린, mypy --strict 클린.</div>
-        </a>
-        <a class="doc-card" href="phase4.html">
-          <div class="doc-card-title">Phase 4 보고 — 컨테이너화 + Render 배포 + CI</div>
-          <div class="doc-card-desc">기간: 2026-04-30 범위: 계획서 Phase 4 (Containerize &amp; deploy) 검증: pytest 84건 통과, ruff 클린, mypy --strict 클린, docker build . 성공, 컨테이너 boot + /health 200, 특수문자 SERVICE_KEY (abc+def/ghi=jkl) raw/URL-encoded 모…</div>
-        </a>
-        <a class="doc-card" href="phase5.html">
-          <div class="doc-card-title">Phase 5 보고 — Claude 디렉터리 제출 패키지</div>
-          <div class="doc-card-desc">기간: 2026-05-06 범위: 계획서 Phase 5 (Submission package) 검증: pytest 89건 통과, ruff 클린, mypy --strict 클린, 로컬 ev-mcp 서버 부팅 + MCP initialize + tools/list + 코드 테이블 7종 tools/call 모두 200, 토큰 예산 모든 코드 테이블 ≤ 5k t…</div>
-        </a>
-        <a class="doc-card" href="phase6.html">
-          <div class="doc-card-title">Phase 6 보고 — SQLite 영속 캐시</div>
-          <div class="doc-card-desc">기간: 2026-05-06 범위: 계획서 Phase 6 (영속화 + sync 분리) 검증: pytest 102건 통과 (Phase 5 의 89건 + 13건 신규: store 18건, sync 2건, 기타 정리), ruff 클린, mypy --strict 클린.</div>
-        </a>
-        <a class="doc-card" href="phase7.html">
-          <div class="doc-card-title">Phase 7 보고 — MCPB 번들 패키징</div>
-          <div class="doc-card-desc">기간: 2026-05-07 범위: Claude Desktop 용 MCPB(.mcpb) 번들 + stdio CLI 진입점 + sync 콘솔 스크립트 검증: pytest 102건 통과, ruff 클린, mypy --strict 클린, mcpb validate 통과, mcpb pack 으로 ev-mcp.mcpb 68KB 생성, stdio 진입점 boot 확인.</div>
-        </a>
-        <a class="doc-card" href="phase9.html">
-          <div class="doc-card-title">Phase 9 보고 — TypeScript Cloudflare Workers 포팅</div>
-          <div class="doc-card-desc">기간: 2026-05-07 ~ 2026-05-08 범위: Python/FastMCP 7-tool MCP 서버 → TypeScript/Workers + Durable Objects 포팅. 무료 / 영구 / 글로벌 엣지. 검증: tsc --noEmit 클린, wrangler deploy --dry-run 통과 (번들 1.65 MiB raw / 301.60…</div>
-        </a>
-        <a class="doc-card" href="phase10.html">
-          <div class="doc-card-title">Phase 10 보고 — DuckDB 분석 사이드카 (Stage 10.2 + 10.3 + 10.4)</div>
-          <div class="doc-card-desc">기간: 2026-05-11 (1일) 범위: ADR-001 의 결정에 따라 DuckDB 기반 분석 사이드카를 도입. 기존 7개 lookup 툴은 그대로 두고, Parquet 위에서 GROUP BY/AVG 분석을 수행하는 새 MCP 툴 2개 (analyze_operator_health, regional_density) 추가. Stage 10.1 (Work…</div>
-        </a>
-      </div>
-      <h2 class="doc-section-title">운영 · 정책</h2>
-      <div class="doc-index-grid">
-        <a class="doc-card" href="privacy.html">
-          <div class="doc-card-title">개인정보 처리방침 (Privacy Policy)</div>
-          <div class="doc-card-desc">이 문서는 ev-mcp (한국환경공단 EV 충전소 정보 MCP 서버) 가 사용자 데이터를 어떻게 다루는지 설명합니다. Claude 원격 MCP 서버 디렉터리 제출 가이드 의 필수 문서입니다.</div>
-        </a>
-        <a class="doc-card" href="support.html">
-          <div class="doc-card-title">지원 (Support)</div>
-          <div class="doc-card-desc">이 문서는 ev-mcp (한국환경공단 EV 충전소 정보 MCP 서버) 사용자를 위한 지원 채널과 자주 묻는 질문을 안내합니다. Claude 원격 MCP 서버 디렉터리 제출 가이드 의 필수 문서입니다.</div>
-        </a>
-      </div>
-      <h2 class="doc-section-title">ADR (Architecture Decision Record)</h2>
-      <div class="doc-index-grid">
-        <a class="doc-card" href="adr/index.html">
-          <div class="doc-card-title">Architecture Decision Records (ADR)</div>
-          <div class="doc-card-desc">ev-mcp 의 굵직한 아키텍처 결정을 박제하는 곳. 결정·근거·대안·롤백 계획을 한 파일에.</div>
-        </a>
-        <a class="doc-card" href="adr/adr-001-duckdb-analytics.html">
-          <div class="doc-card-title">ADR-001 — DuckDB 분석 사이드카 도입</div>
-          <div class="doc-card-desc">상태: Accepted (2026-05-11) — Stage 10.2 + 10.3 + 10.4 완료. Stage 10.1 (R2 export) 미진행. 결정자: bokeum 대상 Phase: Phase 10 (PLAN.md) 관련 문서: scratch/duckdb_poc.py (검증 스크립트), docs/PLAN.md Phase 10 섹션, docs/…</div>
-        </a>
-      </div>
-      <h2 class="doc-section-title">web 대시보드</h2>
-      <div class="doc-index-grid">
-        <a class="doc-card" href="web-readme.html">
-          <div class="doc-card-title">web/ — ev-mcp 분석 대시보드</div>
-          <div class="doc-card-desc">DuckDB-WASM + Chart.js + Leaflet 으로 만든 순수 정적 분석 도구. 한국환경공단 EV 충전소 Parquet 스냅샷을 브라우저가 직접 읽고 분석. 서버 부담 0, 빌드 step 0, npm 의존성 0.</div>
-        </a>
-      </div>
-      <h2 class="doc-section-title">Cloudflare Workers</h2>
-      <div class="doc-index-grid">
-        <a class="doc-card" href="workers-readme.html">
-          <div class="doc-card-title">ev-mcp on Cloudflare Workers</div>
-          <div class="doc-card-desc">Phase 9 — TypeScript port of the Python ev_mcp (see repo root).</div>
-        </a>
-        <a class="doc-card" href="workers-deploy.html">
-          <div class="doc-card-title">Workers 배포 가이드 (Phase 9 Stage 5)</div>
-          <div class="doc-card-desc">ev-mcp 의 Cloudflare Workers + Durable Objects 배포는 사용자 Cloudflare 계정에서 직접 실행해야 하는 단계가 절반입니다. 이 문서는 그 절차를 정리한 runbook 입니다.</div>
-        </a>
-      </div>
-      </article>
+        <nav class="toc">
+        <a href="#프로젝트-개요"><span class="n">01</span>프로젝트 개요</a>
+        <a href="#phase-보고서"><span class="n">02</span>Phase 보고서</a>
+        <a href="#운영-정책"><span class="n">03</span>운영 · 정책</a>
+        <a href="#adr-architecture-decision-record"><span class="n">04</span>ADR (Architecture Decision Record)</a>
+        <a href="#web-대시보드"><span class="n">05</span>web 대시보드</a>
+        <a href="#cloudflare-workers"><span class="n">06</span>Cloudflare Workers</a>
+        </nav>
+      </section>
+
+      <section class="doc-section" id="프로젝트-개요">
+        <div class="sec-head">
+          <span class="idx">01</span>
+          <h2>프로젝트 개요</h2>
+          <span class="count">4 docs</span>
+        </div>
+        <div class="doc-index-grid">
+          <a class="doc-card" href="readme.html">
+            <div class="doc-card-title">ev-mcp — 한국 EV 충전소 정보 MCP 서버</div>
+            <div class="doc-card-desc">한국환경공단의 전기자동차 충전소 정보 OpenAPI v1.23 을 Claude 와 호환되는 원격 MCP 커넥터로 노출합니다. Claude 에서 자연어로 질문하면 7 개의 도구가 자동으로 호출되어 답을 만듭니다.</div>
+            <div class="doc-card-file">
+              <span>readme.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="plan.html">
+            <div class="doc-card-title">Plan: Korean EV Charging Station MCP Server (Claude Remote Connector)</div>
+            <div class="doc-card-desc">Date: 2026-04-30 Working dir: /home/bokeum/ai/ev_mcp Source spec: 한국환경공단_전기자동차 충전소 정보_OpenAPI활용가이드_v1.23.docx Reference: Claude Remote MCP Server Submission Guide (support.claude.com/ko/articles/12…</div>
+            <div class="doc-card-file">
+              <span>plan.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="architecture.html">
+            <div class="doc-card-title">Anatomy of a Claude Code Project — ev-mcp</div>
+            <div class="doc-card-desc">이 프로젝트는 Claude Code(또는 다른 AI 코딩 보조 도구)와 사람이 같이 작업하는 것을 전제로 디렉터리를 짰습니다. 어디에 무엇이 있고, AI가 어떤 파일을 어떤 순서로 읽어야 하는지를 정리합니다.</div>
+            <div class="doc-card-file">
+              <span>architecture.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="workflow.html">
+            <div class="doc-card-title">Workflow — Phase 단위 협업 사이클</div>
+            <div class="doc-card-desc">이 프로젝트는 사람과 AI 가 같이 작업하면서, 각 Phase 마다 문서 → 구현 → 리뷰 → 검증 → 보고 가 일관되게 흐르도록 만들어졌습니다.</div>
+            <div class="doc-card-file">
+              <span>workflow.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+        </div>
+      </section>
+      <section class="doc-section" id="phase-보고서">
+        <div class="sec-head">
+          <span class="idx">02</span>
+          <h2>Phase 보고서</h2>
+          <span class="count">9 docs</span>
+        </div>
+        <div class="doc-index-grid">
+          <a class="doc-card" href="phase1.html">
+            <div class="doc-card-title">Phase 1 보고 — 골격 + 클라이언트 + 모델 + 코드 테이블</div>
+            <div class="doc-card-desc">기간: 2026-04-30 범위: 계획서 Phase 1 (Skeleton &amp; client) 검증: pytest 11건 통과, ruff 클린, mypy --strict 클린.</div>
+            <div class="doc-card-file">
+              <span>phase1.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="phase2.html">
+            <div class="doc-card-title">Phase 2 보고 — 캐시, 지오코더, 7개 MCP 툴</div>
+            <div class="doc-card-desc">기간: 2026-04-30 범위: 계획서 Phase 2 (Cache &amp; tools) 검증: pytest 68건 통과, ruff 클린, mypy --strict 클린.</div>
+            <div class="doc-card-file">
+              <span>phase2.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="phase3.html">
+            <div class="doc-card-title">Phase 3 보고 — FastMCP 서버 와이어링</div>
+            <div class="doc-card-desc">기간: 2026-04-30 범위: 계획서 Phase 3 (MCP server wiring) 검증: pytest 78건 통과, ruff 클린, mypy --strict 클린.</div>
+            <div class="doc-card-file">
+              <span>phase3.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="phase4.html">
+            <div class="doc-card-title">Phase 4 보고 — 컨테이너화 + Render 배포 + CI</div>
+            <div class="doc-card-desc">기간: 2026-04-30 범위: 계획서 Phase 4 (Containerize &amp; deploy) 검증: pytest 84건 통과, ruff 클린, mypy --strict 클린, docker build . 성공, 컨테이너 boot + /health 200, 특수문자 SERVICE_KEY (abc+def/ghi=jkl) raw/URL-encoded 모…</div>
+            <div class="doc-card-file">
+              <span>phase4.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="phase5.html">
+            <div class="doc-card-title">Phase 5 보고 — Claude 디렉터리 제출 패키지</div>
+            <div class="doc-card-desc">기간: 2026-05-06 범위: 계획서 Phase 5 (Submission package) 검증: pytest 89건 통과, ruff 클린, mypy --strict 클린, 로컬 ev-mcp 서버 부팅 + MCP initialize + tools/list + 코드 테이블 7종 tools/call 모두 200, 토큰 예산 모든 코드 테이블 ≤ 5k t…</div>
+            <div class="doc-card-file">
+              <span>phase5.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="phase6.html">
+            <div class="doc-card-title">Phase 6 보고 — SQLite 영속 캐시</div>
+            <div class="doc-card-desc">기간: 2026-05-06 범위: 계획서 Phase 6 (영속화 + sync 분리) 검증: pytest 102건 통과 (Phase 5 의 89건 + 13건 신규: store 18건, sync 2건, 기타 정리), ruff 클린, mypy --strict 클린.</div>
+            <div class="doc-card-file">
+              <span>phase6.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="phase7.html">
+            <div class="doc-card-title">Phase 7 보고 — MCPB 번들 패키징</div>
+            <div class="doc-card-desc">기간: 2026-05-07 범위: Claude Desktop 용 MCPB(.mcpb) 번들 + stdio CLI 진입점 + sync 콘솔 스크립트 검증: pytest 102건 통과, ruff 클린, mypy --strict 클린, mcpb validate 통과, mcpb pack 으로 ev-mcp.mcpb 68KB 생성, stdio 진입점 boot 확인.</div>
+            <div class="doc-card-file">
+              <span>phase7.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="phase9.html">
+            <div class="doc-card-title">Phase 9 보고 — TypeScript Cloudflare Workers 포팅</div>
+            <div class="doc-card-desc">기간: 2026-05-07 ~ 2026-05-08 범위: Python/FastMCP 7-tool MCP 서버 → TypeScript/Workers + Durable Objects 포팅. 무료 / 영구 / 글로벌 엣지. 검증: tsc --noEmit 클린, wrangler deploy --dry-run 통과 (번들 1.65 MiB raw / 301.60…</div>
+            <div class="doc-card-file">
+              <span>phase9.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="phase10.html">
+            <div class="doc-card-title">Phase 10 보고 — DuckDB 분석 사이드카 (Stage 10.2 + 10.3 + 10.4)</div>
+            <div class="doc-card-desc">기간: 2026-05-11 (1일) 범위: ADR-001 의 결정에 따라 DuckDB 기반 분석 사이드카를 도입. 기존 7개 lookup 툴은 그대로 두고, Parquet 위에서 GROUP BY/AVG 분석을 수행하는 새 MCP 툴 2개 (analyze_operator_health, regional_density) 추가. Stage 10.1 (Work…</div>
+            <div class="doc-card-file">
+              <span>phase10.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+        </div>
+      </section>
+      <section class="doc-section" id="운영-정책">
+        <div class="sec-head">
+          <span class="idx">03</span>
+          <h2>운영 · 정책</h2>
+          <span class="count">2 docs</span>
+        </div>
+        <div class="doc-index-grid">
+          <a class="doc-card" href="privacy.html">
+            <div class="doc-card-title">개인정보 처리방침 (Privacy Policy)</div>
+            <div class="doc-card-desc">이 문서는 ev-mcp (한국환경공단 EV 충전소 정보 MCP 서버) 가 사용자 데이터를 어떻게 다루는지 설명합니다. Claude 원격 MCP 서버 디렉터리 제출 가이드 의 필수 문서입니다.</div>
+            <div class="doc-card-file">
+              <span>privacy.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="support.html">
+            <div class="doc-card-title">지원 (Support)</div>
+            <div class="doc-card-desc">이 문서는 ev-mcp (한국환경공단 EV 충전소 정보 MCP 서버) 사용자를 위한 지원 채널과 자주 묻는 질문을 안내합니다. Claude 원격 MCP 서버 디렉터리 제출 가이드 의 필수 문서입니다.</div>
+            <div class="doc-card-file">
+              <span>support.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+        </div>
+      </section>
+      <section class="doc-section" id="adr-architecture-decision-record">
+        <div class="sec-head">
+          <span class="idx">04</span>
+          <h2>ADR (Architecture Decision Record)</h2>
+          <span class="count">2 docs</span>
+        </div>
+        <div class="doc-index-grid">
+          <a class="doc-card" href="adr/index.html">
+            <div class="doc-card-title">Architecture Decision Records (ADR)</div>
+            <div class="doc-card-desc">ev-mcp 의 굵직한 아키텍처 결정을 박제하는 곳. 결정·근거·대안·롤백 계획을 한 파일에.</div>
+            <div class="doc-card-file">
+              <span>adr/index.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="adr/adr-001-duckdb-analytics.html">
+            <div class="doc-card-title">ADR-001 — DuckDB 분석 사이드카 도입</div>
+            <div class="doc-card-desc">상태: Accepted (2026-05-11) — Stage 10.2 + 10.3 + 10.4 완료. Stage 10.1 (R2 export) 미진행. 결정자: bokeum 대상 Phase: Phase 10 (PLAN.md) 관련 문서: scratch/duckdb_poc.py (검증 스크립트), docs/PLAN.md Phase 10 섹션, docs/…</div>
+            <div class="doc-card-file">
+              <span>adr/adr-001-duckdb-analytics.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+        </div>
+      </section>
+      <section class="doc-section" id="web-대시보드">
+        <div class="sec-head">
+          <span class="idx">05</span>
+          <h2>web 대시보드</h2>
+          <span class="count">1 doc</span>
+        </div>
+        <div class="doc-index-grid">
+          <a class="doc-card" href="web-readme.html">
+            <div class="doc-card-title">web/ — ev-mcp 분석 대시보드</div>
+            <div class="doc-card-desc">DuckDB-WASM + Chart.js + Leaflet 으로 만든 순수 정적 분석 도구. 한국환경공단 EV 충전소 Parquet 스냅샷을 브라우저가 직접 읽고 분석. 서버 부담 0, 빌드 step 0, npm 의존성 0.</div>
+            <div class="doc-card-file">
+              <span>web-readme.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+        </div>
+      </section>
+      <section class="doc-section" id="cloudflare-workers">
+        <div class="sec-head">
+          <span class="idx">06</span>
+          <h2>Cloudflare Workers</h2>
+          <span class="count">2 docs</span>
+        </div>
+        <div class="doc-index-grid">
+          <a class="doc-card" href="workers-readme.html">
+            <div class="doc-card-title">ev-mcp on Cloudflare Workers</div>
+            <div class="doc-card-desc">Phase 9 — TypeScript port of the Python ev_mcp (see repo root).</div>
+            <div class="doc-card-file">
+              <span>workers-readme.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+          <a class="doc-card" href="workers-deploy.html">
+            <div class="doc-card-title">Workers 배포 가이드 (Phase 9 Stage 5)</div>
+            <div class="doc-card-desc">ev-mcp 의 Cloudflare Workers + Durable Objects 배포는 사용자 Cloudflare 계정에서 직접 실행해야 하는 단계가 절반입니다. 이 문서는 그 절차를 정리한 runbook 입니다.</div>
+            <div class="doc-card-file">
+              <span>workers-deploy.html</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>
+        </div>
+      </section>
     </main>
+
+    <footer class="doc-footer">
+      <div>
+        <span class="k">ev-mcp</span> · 한국환경공단 EV OpenAPI v1.23
+      </div>
+      <div>
+        DuckDB-WASM · marked.js · 정적 HTML
+      </div>
+    </footer>
   </body>
 </html>

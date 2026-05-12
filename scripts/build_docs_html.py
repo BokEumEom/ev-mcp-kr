@@ -127,7 +127,7 @@ def extract_title_and_desc(md_text: str, fallback_title: str) -> tuple[str, str]
 
 
 def render_doc_page(entry: DocEntry, project_title: str) -> str:
-    """한 문서 페이지 HTML 셸 렌더링."""
+    """한 문서 페이지 HTML 셸 렌더링 (워밍 모노크롬 + serif)."""
 
     # web/docs/<sub>.html 에서 _docs.css 와 _shared.js 까지 상대 경로.
     rel_root = relpath_to_web_docs_root(entry.out_path)
@@ -152,7 +152,7 @@ def render_doc_page(entry: DocEntry, project_title: str) -> str:
           <span class="sep">/</span>
           <a href="{html.escape(index_href)}">문서</a>
           <span class="sep">/</span>
-          <span>{html.escape(entry.title)}</span>
+          <span>{html.escape(entry.category)}</span>
         </nav>
         <div class="tools">
           <a href="{html.escape(entry.rel_md_from_out)}" download>원본 .md</a>
@@ -164,6 +164,15 @@ def render_doc_page(entry: DocEntry, project_title: str) -> str:
       <div class="doc-status">문서 로드 중…</div>
       <article class="doc-body" hidden></article>
     </main>
+
+    <footer class="doc-footer">
+      <div>
+        <span class="k">{html.escape(project_title)}</span> · {html.escape(entry.category)}
+      </div>
+      <div>
+        <a href="{html.escape(index_href)}">← 문서 포털</a>
+      </div>
+    </footer>
 
     <script type="module" src="{html.escape(js_src)}"></script>
   </body>
@@ -179,33 +188,63 @@ def relpath_to_web_docs_root(out_path: Path) -> str:
     return "../" * depth if depth > 0 else "./"
 
 
+def _slugify(text: str) -> str:
+    """카테고리 → URL anchor 슬러그."""
+
+    out = re.sub(r"[^\w\s-]", "", text, flags=re.UNICODE)
+    out = re.sub(r"[\s_·]+", "-", out, flags=re.UNICODE).strip("-").lower()
+    return out or "section"
+
+
 def render_index_page(entries: list[DocEntry], project_title: str) -> str:
-    """문서 포털 index — 카테고리별 카드 그리드."""
+    """문서 포털 index — masthead + TOC pills + 번호 매겨진 카테고리 섹션."""
 
     # 카테고리 순서 보존 (SOURCES 순서대로 첫 등장 기준).
     seen: dict[str, list[DocEntry]] = {}
     for e in entries:
         seen.setdefault(e.category, []).append(e)
 
-    sections: list[str] = []
-    for category, items in seen.items():
+    cats = list(seen.items())
+
+    # TOC pills
+    pills = "\n".join(
+        f"""        <a href="#{_slugify(cat)}"><span class="n">{i + 1:02d}</span>{html.escape(cat)}</a>"""
+        for i, (cat, _) in enumerate(cats)
+    )
+
+    # 카테고리별 섹션
+    sections_html: list[str] = []
+    for i, (category, items) in enumerate(cats):
+        idx = f"{i + 1:02d}"
+        anchor = _slugify(category)
         cards = "\n".join(
             (
-                f"""        <a class="doc-card" href="{html.escape(e.rel_out_from_index)}">
-          <div class="doc-card-title">{html.escape(e.title)}</div>
-          <div class="doc-card-desc">{html.escape(e.description) or "—"}</div>
-        </a>"""
+                f"""          <a class="doc-card" href="{html.escape(e.rel_out_from_index)}">
+            <div class="doc-card-title">{html.escape(e.title)}</div>
+            <div class="doc-card-desc">{html.escape(e.description) or "—"}</div>
+            <div class="doc-card-file">
+              <span>{html.escape(e.rel_out_from_index)}</span>
+              <span class="doc-card-arrow">→</span>
+            </div>
+          </a>"""
             )
             for e in items
         )
-        sections.append(
-            f"""      <h2 class="doc-section-title">{html.escape(category)}</h2>
-      <div class="doc-index-grid">
+        count = len(items)
+        sections_html.append(
+            f"""      <section class="doc-section" id="{anchor}">
+        <div class="sec-head">
+          <span class="idx">{idx}</span>
+          <h2>{html.escape(category)}</h2>
+          <span class="count">{count} {"docs" if count != 1 else "doc"}</span>
+        </div>
+        <div class="doc-index-grid">
 {cards}
-      </div>"""
+        </div>
+      </section>"""
         )
 
-    body = "\n".join(sections)
+    sections_block = "\n".join(sections_html)
 
     return f"""<!doctype html>
 <html lang="ko">
@@ -224,22 +263,35 @@ def render_index_page(entries: list[DocEntry], project_title: str) -> str:
           <span>문서</span>
         </nav>
         <div class="tools">
-          <a href="https://github.com" rel="noopener" hidden>저장소</a>
+          <a href="../../README.md" download>README.md</a>
         </div>
       </div>
     </header>
 
     <main class="doc-main">
-      <article class="doc-body" style="display:block">
-        <h1>{html.escape(project_title)} 문서 포털</h1>
-        <p>
-          한국환경공단 EV 충전소 OpenAPI v1.23 을 Claude 원격 MCP 커넥터로 노출하는
-          프로젝트. 각 문서는 원본 markdown 을 브라우저에서 직접 렌더링합니다 —
-          서버 빌드 step 0.
+      <section class="masthead">
+        <div class="eyebrow">문서 포털 · ev-mcp</div>
+        <h1 class="doc-title">한국 EV 충전소 <em>MCP</em> 프로젝트 문서</h1>
+        <p class="intro">
+          한국환경공단 OpenAPI v1.23 을 Claude 원격 MCP 커넥터로 노출하는 프로젝트.
+          각 문서는 원본 markdown 을 브라우저에서 직접 렌더링 — 서버 빌드 step 0.
         </p>
-{body}
-      </article>
+        <nav class="toc">
+{pills}
+        </nav>
+      </section>
+
+{sections_block}
     </main>
+
+    <footer class="doc-footer">
+      <div>
+        <span class="k">{html.escape(project_title)}</span> · 한국환경공단 EV OpenAPI v1.23
+      </div>
+      <div>
+        DuckDB-WASM · marked.js · 정적 HTML
+      </div>
+    </footer>
   </body>
 </html>
 """
