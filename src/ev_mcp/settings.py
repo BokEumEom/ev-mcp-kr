@@ -30,6 +30,10 @@ class Settings(BaseSettings):
         default=Path("scratch/chargers_snapshot.parquet"),
         description="로컬 Parquet 스냅샷 경로 (snapshot_source='local' 일 때 사용)",
     )
+    snapshot_dir: Path = Field(
+        default=Path("data/snapshots"),
+        description="날짜별 Parquet 스냅샷 디렉터리 (snapshot_source='local' 일 때 glob 대상)",
+    )
     snapshot_source: str = Field(
         default="local",
         description="분석 데이터 소스: 'local' (snapshot_path) 또는 'r2' (Cloudflare R2)",
