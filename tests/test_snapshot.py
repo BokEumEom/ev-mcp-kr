@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+import pytest
 
 from ev_mcp.models import ChargerInfo
 from ev_mcp.snapshot import write_snapshot
@@ -53,9 +54,11 @@ def test_write_snapshot_creates_parquet_with_extra_columns(tmp_path: Path) -> No
             f"DESCRIBE SELECT * FROM read_parquet('{out}')"
         ).fetchall()}
         assert {"snapshot_date", "synced_at", "row_count"} <= cols
-        n, rc = conn.execute(
+        row = conn.execute(
             f"SELECT COUNT(*), ANY_VALUE(row_count) FROM read_parquet('{out}')"
         ).fetchone()
+        assert row is not None
+        n, rc = row
         assert n == 5
         assert rc == 5
     finally:
@@ -83,3 +86,11 @@ def test_write_snapshot_force_overrides_skip(tmp_path: Path) -> None:
     write_snapshot(db_path, snap_dir, force=False)
     forced = write_snapshot(db_path, snap_dir, force=True)
     assert forced is not None  # --force → synced_at 동일해도 기록
+
+
+def test_write_snapshot_raises_for_unsynced_store(tmp_path: Path) -> None:
+    db_path = tmp_path / "chargers.db"
+    store = open_store(db_path)  # 스키마만 생성, last_synced_at 은 NULL
+    store.close()
+    with pytest.raises(RuntimeError, match="ev-mcp-sync"):
+        write_snapshot(db_path, tmp_path / "snapshots")
