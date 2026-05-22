@@ -1,4 +1,4 @@
-"""DuckDB 분석 사이드카 — Phase 10 (ADR-001).
+"""DuckDB 분석 사이드카 — Phase 10 (ADR-001), view layer Phase 11.
 
 분석 MCP 툴이 사용하는 단일 입구. SQLite 영속 store (Phase 6) 와는 독립.
 운영 lookup 워크로드는 영향 받지 않는다 — 이 모듈은 read-only sidepath.
@@ -7,8 +7,18 @@
 -----------
 ``Settings.snapshot_source`` 가 결정:
 
-- ``"local"``  → ``Settings.snapshot_path`` 의 Parquet 파일 직접 read_parquet
+- ``"local"``  → ``Settings.snapshot_dir`` 내 glob 으로 Parquet 파일 탐색
 - ``"r2"``     → ``s3://{r2_bucket}/chargers_*.parquet`` + httpfs 자격증명
+
+Named views
+-----------
+연결 시점에 두 view 를 생성한다 (소스 경로/자격증명은 여기서만 참조):
+
+- ``v_all``    — 전체 스냅샷 관측값 (모든 snapshot_date)
+- ``v_latest`` — 가장 최신 snapshot_date 의 행만
+
+호출부 SQL 은 ``FROM v_latest`` / ``FROM v_all`` 을 직접 쓴다.
+``{source}`` 플레이스홀더 기반 방식은 Phase 11 에서 제거됨.
 
 ATTACH mode 는 의도적으로 쓰지 않는다 — PoC 에서 분석 워크로드 일관성 부족
 확인 (ADR-001 Alt-3). 분석 쿼리는 Parquet 위에서만 돈다.
@@ -26,6 +36,7 @@ from typing import Any, cast
 import duckdb
 
 from .settings import Settings
+from .snapshot import SNAPSHOT_GLOB
 
 
 class AnalyticsError(RuntimeError):
@@ -41,40 +52,6 @@ class AnalyticsClient:
         self._redaction_values: list[str] = self._collect_secrets()
 
     # ------------------------------------------------------------------
-    # Source resolution
-    # ------------------------------------------------------------------
-
-    def _source_expr(self) -> str:
-        """SQL fragment that points read_parquet at the right source.
-
-        Returns a complete ``read_parquet('...')`` call ready to interpolate
-        into a SELECT.
-        """
-        src = self._settings.snapshot_source.lower()
-        if src == "local":
-            path = self._settings.snapshot_path
-            if not path.exists():
-                raise AnalyticsError(
-                    f"snapshot_path 가 존재하지 않습니다: {path}. "
-                    "scratch/duckdb_poc.py 를 한 번 실행해 스냅샷을 만들거나 "
-                    "snapshot_source 를 'r2' 로 전환하세요."
-                )
-            return f"read_parquet('{path.resolve()}')"
-
-        if src == "r2":
-            bucket = self._settings.r2_bucket
-            if not bucket:
-                raise AnalyticsError(
-                    "snapshot_source='r2' 인데 R2_BUCKET 이 설정되지 않았습니다. "
-                    ".env 의 R2_* 4개 필드를 채우거나 SNAPSHOT_SOURCE=local 로 두세요."
-                )
-            return f"read_parquet('s3://{bucket}/chargers_*.parquet')"
-
-        raise AnalyticsError(
-            f"알 수 없는 snapshot_source: '{src}'. 'local' 또는 'r2' 만 허용."
-        )
-
-    # ------------------------------------------------------------------
     # Connection
     # ------------------------------------------------------------------
 
@@ -82,10 +59,54 @@ class AnalyticsClient:
         if self._conn is not None:
             return self._conn
         conn = duckdb.connect(":memory:")
-        if self._settings.snapshot_source.lower() == "r2":
-            self._configure_r2(conn)
+        self._create_views(conn)
         self._conn = conn
         return conn
+
+    def _create_views(self, conn: Any) -> None:
+        """소스(local glob / R2 s3 glob)에 따라 v_all·v_latest view 생성.
+
+        호출부 SQL 에 소스 문자열이 들어가지 않도록, read_parquet 호출은
+        view 정의 단 한 곳에만 존재한다.
+        """
+        src = self._settings.snapshot_source.lower()
+        if src == "local":
+            snapshot_dir = self._settings.snapshot_dir
+            files = (
+                sorted(snapshot_dir.glob(SNAPSHOT_GLOB))
+                if snapshot_dir.exists()
+                else []
+            )
+            if not files:
+                raise AnalyticsError(
+                    f"스냅샷이 없습니다: {snapshot_dir}. "
+                    "ev-mcp-sync 후 ev-mcp-snapshot 을 한 번 실행하세요."
+                )
+            glob_path = (snapshot_dir / SNAPSHOT_GLOB).resolve()
+            source = f"read_parquet('{glob_path}')"
+        elif src == "r2":
+            bucket = self._settings.r2_bucket
+            if not bucket:
+                raise AnalyticsError(
+                    "snapshot_source='r2' 인데 R2_BUCKET 이 설정되지 않았습니다. "
+                    ".env 의 R2_* 필드를 채우거나 SNAPSHOT_SOURCE=local 로 두세요."
+                )
+            self._configure_r2(conn)
+            source = f"read_parquet('s3://{bucket}/chargers_*.parquet')"
+        else:
+            raise AnalyticsError(
+                f"알 수 없는 snapshot_source: '{src}'. 'local' 또는 'r2' 만 허용."
+            )
+        try:
+            conn.execute(f"CREATE VIEW v_all AS SELECT * FROM {source}")
+            conn.execute(
+                "CREATE VIEW v_latest AS SELECT * FROM v_all "
+                "WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM v_all)"
+            )
+        except AnalyticsError:
+            raise
+        except Exception as e:
+            raise AnalyticsError(self._redact(f"view 생성 실패: {e}")) from None
 
     def _configure_r2(self, conn: Any) -> None:
         """Install + load httpfs and set S3-compatible credentials for R2.
@@ -120,33 +141,24 @@ class AnalyticsClient:
 
     def query(
         self,
-        sql_template: str,
+        sql: str,
         params: list[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
-        """Run a SELECT against the current source.
+        """v_all / v_latest view 에 대한 SELECT 실행.
 
-        ``sql_template`` MUST contain the literal ``{source}`` placeholder where
-        the FROM clause table reference goes. We render that to the correct
-        ``read_parquet('...')`` call here — callers never construct the source
-        string themselves (so credentials and paths can't leak into SQL via
-        accidental f-string interpolation in the caller).
+        호출부는 평범한 SQL 을 쓴다 — ``FROM v_latest`` (최신 스냅샷) 또는
+        ``FROM v_all`` (전체 관측열). 소스 경로/자격증명은 view 정의에만 있다.
         """
-        if "{source}" not in sql_template:
-            raise AnalyticsError(
-                "sql_template must contain '{source}' placeholder for the FROM clause"
-            )
-        # Resolve source FIRST so config errors (missing bucket, bad source name)
-        # surface before we install httpfs / set S3 creds.
-        source = self._source_expr()
         conn = self._ensure_connected()
-        rendered = sql_template.replace("{source}", source)
         try:
-            cursor = conn.execute(rendered, params or [])
+            cursor = conn.execute(sql, params or [])
             return cast(list[tuple[Any, ...]], cursor.fetchall())
         except AnalyticsError:
             raise
         except Exception as e:
-            raise AnalyticsError(self._redact(f"query failed: {type(e).__name__}: {e}")) from None
+            raise AnalyticsError(
+                self._redact(f"query failed: {type(e).__name__}: {e}")
+            ) from None
 
     # ------------------------------------------------------------------
     # Lifecycle

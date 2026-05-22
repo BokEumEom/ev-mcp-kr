@@ -39,7 +39,7 @@ _QUERY_SIGUNGU = """
         COUNT(DISTINCT busi_id) AS distinct_operators,
         SUM(CASE WHEN chger_type IN ({dc_placeholders}) THEN 1 ELSE 0 END) AS dc_count,
         AVG(CASE WHEN chger_type IN ({dc_placeholders}) THEN 1.0 ELSE 0.0 END) AS dc_ratio
-    FROM {source}
+    FROM v_latest
     WHERE del_yn = 'N' AND zscode IS NOT NULL
     GROUP BY zcode, zscode
     ORDER BY total_chargers DESC
@@ -54,7 +54,7 @@ _QUERY_SIDO = """
         COUNT(DISTINCT busi_id) AS distinct_operators,
         SUM(CASE WHEN chger_type IN ({dc_placeholders}) THEN 1 ELSE 0 END) AS dc_count,
         AVG(CASE WHEN chger_type IN ({dc_placeholders}) THEN 1.0 ELSE 0.0 END) AS dc_ratio
-    FROM {source}
+    FROM v_latest
     WHERE del_yn = 'N'
     GROUP BY zcode
     ORDER BY total_chargers DESC
@@ -100,7 +100,6 @@ def regional_density(
     dc_placeholders = ",".join(["?"] * len(DC_CODES))
     template = (_QUERY_SIGUNGU if group_by == "sigungu" else _QUERY_SIDO).format(
         dc_placeholders=dc_placeholders,
-        source="{source}",  # 보존 — analytics.query 가 채움
     )
     params = [*DC_CODES, *DC_CODES, limit]
     rows = ctx.analytics.query(template, params)

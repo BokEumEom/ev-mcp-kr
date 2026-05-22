@@ -45,7 +45,7 @@ _QUERY_TEMPLATE = """
         AVG(CASE WHEN stat IN (?, ?, ?) THEN 1.0 ELSE 0.0 END) AS downtime_ratio,
         SUM(CASE WHEN stat = ? THEN 1 ELSE 0 END) AS unmonitored_count,
         AVG(CASE WHEN stat = ? THEN 1.0 ELSE 0.0 END) AS unmonitored_ratio
-    FROM {source}
+    FROM v_latest
     WHERE del_yn = 'N'
     GROUP BY busi_id
     HAVING COUNT(*) >= ?

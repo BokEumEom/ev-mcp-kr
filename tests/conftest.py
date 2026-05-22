@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pytest
@@ -28,83 +29,78 @@ def settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
 
 
 @pytest.fixture
-def analytics_snapshot(tmp_path: Path) -> Path:
-    """Build a tiny Parquet fixture for analytics tests.
+def analytics_snapshot_dir(tmp_path: Path) -> Path:
+    """다중 날짜 스냅샷 Parquet 디렉터리 픽스처.
 
-    Schema mirrors the production snapshot (subset of columns used by analytics
-    queries). 4 operators x 3 regions x varied stat/chger_type → enough to
-    exercise GROUP BY semantics without depending on data/chargers.db.
+    2개 스냅샷을 만든다:
+    - 2026-05-20 (older): ME=180, EV=150, KM=120, TINY=50
+    - 2026-05-22 (latest): ME=200, EV=150, KM=120, TINY=50
+
+    latest 스냅샷이 기존 운영자 분석 테스트의 기대값(ME=200 등)을 유지하고,
+    older 스냅샷이 v_all / snapshot_diff 테스트에 두 번째 날짜를 제공한다.
     """
-    path = tmp_path / "snapshot.parquet"
+    snap_dir = tmp_path / "snapshots"
+    snap_dir.mkdir()
     conn = duckdb.connect(":memory:")
     try:
-        conn.execute(
-            """
-            CREATE TABLE chargers (
-                stat_id     VARCHAR,
-                chger_id    VARCHAR,
-                busi_id     VARCHAR,
-                busi_nm     VARCHAR,
-                stat        VARCHAR,
-                chger_type  VARCHAR,
-                zcode       VARCHAR,
-                zscode      VARCHAR,
-                del_yn      VARCHAR
+        def build(date: str, me_total: int) -> None:
+            rows: list[tuple[Any, ...]] = []
+
+            def gen(busi_id: str, busi_nm: str, total: int, downtime: int,
+                    unmonitored: int, zcode: str, zscode: str) -> None:
+                for i in range(total):
+                    if i < downtime:
+                        stat = "4"
+                    elif i < downtime + unmonitored:
+                        stat = "9"
+                    elif i < downtime + unmonitored + 5:
+                        stat = "2"
+                    else:
+                        stat = "3"
+                    ctype = "04" if i % 2 == 0 else "02"
+                    rows.append((
+                        f"{busi_id}-S{i:04d}", f"{busi_id}-C{i:04d}",
+                        busi_id, busi_nm, stat, ctype, zcode, zscode, "N",
+                        date, f"{date}T03:00:00+00:00", 0,
+                    ))
+
+            gen("ME", "환경부", me_total, 10, 15, "11", "11680")
+            gen("EV", "에버온", 150, 60, 0, "11", "11680")
+            gen("KM", "카카오", 120, 30, 0, "41", "41460")
+            gen("TINY", "소형운영자", 50, 5, 0, "41", "41460")
+            rows.append((
+                "DEAD-S", "DEAD-C", "ME", "환경부", "4", "04",
+                "11", "11680", "Y", date, f"{date}T03:00:00+00:00", 0,
+            ))
+            conn.execute("DROP TABLE IF EXISTS t")
+            conn.execute(
+                """
+                CREATE TABLE t (
+                    stat_id VARCHAR, chger_id VARCHAR, busi_id VARCHAR,
+                    busi_nm VARCHAR, stat VARCHAR, chger_type VARCHAR,
+                    zcode VARCHAR, zscode VARCHAR, del_yn VARCHAR,
+                    snapshot_date DATE, synced_at VARCHAR, row_count INTEGER
+                )
+                """
             )
-            """
-        )
-        # ME=환경부 (200건, 비가동 10건=5%, unmonitored 15건),
-        # EV=에버온 (150건, 비가동 60건=40%),
-        # KM=카카오 (120건, 비가동 30건=25%),
-        # TINY=소형 (50건, min_chargers=100 으로 제외)
-        rows: list[tuple[str, str, str, str, str, str, str, str, str]] = []
+            conn.executemany(
+                "INSERT INTO t VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", rows
+            )
+            out = snap_dir / f"chargers_{date}.parquet"
+            conn.execute(f"COPY t TO '{out}' (FORMAT PARQUET, COMPRESSION ZSTD)")
 
-        def gen(
-            busi_id: str,
-            busi_nm: str,
-            total: int,
-            downtime: int,
-            unmonitored: int,
-            zcode: str,
-            zscode: str,
-        ) -> None:
-            for i in range(total):
-                if i < downtime:
-                    stat = "4"  # 비가동 (운영중지)
-                elif i < downtime + unmonitored:
-                    stat = "9"  # 모니터링 부재 (상태미확인)
-                elif i < downtime + unmonitored + 5:
-                    stat = "2"  # 충전대기 (사용 가능)
-                else:
-                    stat = "3"  # 충전중
-                ctype = "04" if i % 2 == 0 else "02"  # half DC, half AC
-                rows.append((
-                    f"{busi_id}-S{i:04d}", f"{busi_id}-C{i:04d}",
-                    busi_id, busi_nm, stat, ctype, zcode, zscode, "N",
-                ))
-
-        gen("ME", "환경부", 200, 10, 15, "11", "11680")
-        gen("EV", "에버온", 150, 60, 0, "11", "11680")
-        gen("KM", "카카오", 120, 30, 0, "41", "41460")
-        gen("TINY", "소형운영자", 50, 5, 0, "41", "41460")
-        # del_yn='Y' row 도 1개 — WHERE 절 검증
-        rows.append(("DEAD-S", "DEAD-C", "ME", "환경부", "4", "04", "11", "11680", "Y"))
-
-        conn.executemany(
-            "INSERT INTO chargers VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            rows,
-        )
-        conn.execute(f"COPY chargers TO '{path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+        build("2026-05-20", me_total=180)
+        build("2026-05-22", me_total=200)
     finally:
         conn.close()
-    return path
+    return snap_dir
 
 
 @pytest.fixture
-def analytics(settings: Settings, analytics_snapshot: Path) -> AnalyticsClient:
-    """AnalyticsClient pointed at the tiny fixture Parquet."""
+def analytics(settings: Settings, analytics_snapshot_dir: Path) -> AnalyticsClient:
+    """AnalyticsClient pointed at the fixture snapshot directory."""
     settings.snapshot_source = "local"
-    settings.snapshot_path = analytics_snapshot
+    settings.snapshot_dir = analytics_snapshot_dir
     return AnalyticsClient(settings)
 
 
