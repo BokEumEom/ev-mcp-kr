@@ -126,3 +126,51 @@ async def ctx(
     finally:
         store.close()
         analytics.close()
+
+
+@pytest.fixture
+def analytics_single_snapshot_dir(tmp_path: Path) -> Path:
+    """스냅샷 1개뿐인 디렉터리 — 시계열 툴의 부족-데이터 엣지 검증용."""
+    snap_dir = tmp_path / "single"
+    snap_dir.mkdir()
+    conn = duckdb.connect(":memory:")
+    try:
+        conn.execute(
+            """
+            CREATE TABLE t (
+                stat_id VARCHAR, chger_id VARCHAR, busi_id VARCHAR,
+                stat VARCHAR, chger_type VARCHAR, del_yn VARCHAR,
+                snapshot_date DATE, synced_at VARCHAR, row_count INTEGER
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO t VALUES "
+            "('S1','C1','ME','2','04','N',DATE '2026-05-22','2026-05-22T03:00:00+00:00',1)"
+        )
+        out = snap_dir / "chargers_2026-05-22.parquet"
+        conn.execute(f"COPY t TO '{out}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+    finally:
+        conn.close()
+    return snap_dir
+
+
+@pytest.fixture
+async def ctx_single_snapshot(
+    settings: Settings,
+    analytics_single_snapshot_dir: Path,
+) -> AsyncIterator[ToolContext]:
+    """ToolContext whose analytics points at a single-snapshot directory."""
+    settings.snapshot_source = "local"
+    settings.snapshot_dir = analytics_single_snapshot_dir
+    analytics = AnalyticsClient(settings)
+    store = ChargerStore(":memory:")
+    try:
+        async with EvChargerClient(settings) as client:
+            yield ToolContext(
+                settings=settings, client=client, store=store,
+                caches=build_caches(settings), analytics=analytics,
+            )
+    finally:
+        store.close()
+        analytics.close()
