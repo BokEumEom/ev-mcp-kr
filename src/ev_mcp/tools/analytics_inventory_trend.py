@@ -49,7 +49,9 @@ def inventory_trend(
     Returns
     -------
     list[InventoryTrendRow]
-        snapshot_date 오름차순. 첫 행 delta_total 은 None (직전 관측 없음).
+        snapshot_date 오름차순. 첫 행 delta_total 은 None — 반환 윈도우 내
+        직전 관측이 없음을 의미하며, 실제 첫 관측인지 limit 으로 잘린 것인지
+        구분하지 않는다.
 
     예시
     ----

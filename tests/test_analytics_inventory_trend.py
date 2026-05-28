@@ -35,3 +35,11 @@ async def test_trend_empty_dir_raises(ctx_empty_snapshot: ToolContext) -> None:
     """스냅샷 0개 → AnalyticsError (레이어에서)."""
     with pytest.raises(AnalyticsError, match="스냅샷"):
         inventory_trend(ctx=ctx_empty_snapshot)
+
+
+async def test_trend_invalid_limit_raises(ctx: ToolContext) -> None:
+    """limit 범위(1~90) 초과 → ValueError."""
+    with pytest.raises(ValueError, match="1~90"):
+        inventory_trend(limit=0, ctx=ctx)
+    with pytest.raises(ValueError, match="1~90"):
+        inventory_trend(limit=91, ctx=ctx)
