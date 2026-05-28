@@ -59,7 +59,11 @@ class AnalyticsClient:
         if self._conn is not None:
             return self._conn
         conn = duckdb.connect(":memory:")
-        self._create_views(conn)
+        try:
+            self._create_views(conn)
+        except Exception:
+            conn.close()
+            raise
         self._conn = conn
         return conn
 

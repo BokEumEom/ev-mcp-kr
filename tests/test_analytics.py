@@ -21,6 +21,8 @@ def test_v_latest_returns_latest_snapshot_only(analytics: AnalyticsClient) -> No
     counts = {r[0]: r[1] for r in rows}
     assert counts["ME"] == 200
     assert counts["EV"] == 150
+    assert counts["KM"] == 120
+    assert counts["TINY"] == 50
 
 
 def test_v_all_spans_every_snapshot(analytics: AnalyticsClient) -> None:
