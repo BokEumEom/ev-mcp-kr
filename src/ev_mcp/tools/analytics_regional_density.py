@@ -23,12 +23,12 @@ from __future__ import annotations
 from ..codes_lookup import sido_label, sigungu_label
 from ..context import ToolContext
 from ..domain import RegionalDensityRow
+from ._analytics_shared import DC_CODES
 
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 50
 GROUP_LEVELS = ("sido", "sigungu")
 DEFAULT_GROUP = "sigungu"
-DC_CODES = ("01", "03", "04", "05", "06", "08", "09", "10")
 
 
 _QUERY_SIGUNGU = """

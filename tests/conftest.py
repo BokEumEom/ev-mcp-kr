@@ -176,3 +176,26 @@ async def ctx_single_snapshot(
     finally:
         store.close()
         analytics.close()
+
+
+@pytest.fixture
+async def ctx_empty_snapshot(
+    settings: Settings,
+    tmp_path: Path,
+) -> AsyncIterator[ToolContext]:
+    """ToolContext whose analytics points at an empty snapshot directory."""
+    empty = tmp_path / "empty_snaps"
+    empty.mkdir()
+    settings.snapshot_source = "local"
+    settings.snapshot_dir = empty
+    analytics = AnalyticsClient(settings)
+    store = ChargerStore(":memory:")
+    try:
+        async with EvChargerClient(settings) as client:
+            yield ToolContext(
+                settings=settings, client=client, store=store,
+                caches=build_caches(settings), analytics=analytics,
+            )
+    finally:
+        store.close()
+        analytics.close()
