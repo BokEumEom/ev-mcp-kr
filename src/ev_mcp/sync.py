@@ -21,6 +21,7 @@ import structlog
 from .client import EvChargerClient, EvChargerError
 from .server import configure_logging
 from .settings import load_settings
+from .snapshot import DEFAULT_SNAPSHOT_DIR, write_snapshot
 from .store import open_store
 
 logger = structlog.get_logger("ev_mcp.sync")
@@ -34,6 +35,7 @@ async def sync(
     db_path: Path,
     page_size: int = DEFAULT_PAGE_SIZE,
     full: bool = False,
+    snapshot: bool = True,
 ) -> None:
     settings = load_settings()
     # Sync is a background batch; data.go.kr's getChargerInfo answers in
@@ -106,6 +108,13 @@ async def sync(
     logger.info("sync_complete", total_rows=store.total_count())
     store.close()
 
+    if snapshot:
+        result = write_snapshot(db_path, DEFAULT_SNAPSHOT_DIR, force=False)
+        if result is None:
+            logger.info("snapshot_skipped", reason="synced_at_unchanged")
+        else:
+            logger.info("snapshot_written", path=str(result))
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="ev-mcp-sync", description=__doc__)
@@ -129,8 +138,20 @@ def main() -> None:
         action="store_true",
         help="Ignore last_completed_page and start from page 1",
     )
+    parser.add_argument(
+        "--no-snapshot",
+        action="store_true",
+        help="sync 완료 후 날짜별 Parquet 스냅샷을 찍지 않음 (기본은 찍음)",
+    )
     args = parser.parse_args()
-    asyncio.run(sync(args.db, page_size=args.page_size, full=args.full))
+    asyncio.run(
+        sync(
+            args.db,
+            page_size=args.page_size,
+            full=args.full,
+            snapshot=not args.no_snapshot,
+        )
+    )
 
 
 if __name__ == "__main__":
