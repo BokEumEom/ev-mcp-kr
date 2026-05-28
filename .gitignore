@@ -25,6 +25,9 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 
+# Phase 11: 날짜별 시계열 Parquet 스냅샷 (ev-mcp-snapshot 산출물)
+data/snapshots/
+
 .DS_Store
 .idea/
 .vscode/
