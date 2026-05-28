@@ -139,14 +139,16 @@ def analytics_single_snapshot_dir(tmp_path: Path) -> Path:
             """
             CREATE TABLE t (
                 stat_id VARCHAR, chger_id VARCHAR, busi_id VARCHAR,
-                stat VARCHAR, chger_type VARCHAR, del_yn VARCHAR,
+                busi_nm VARCHAR, stat VARCHAR, chger_type VARCHAR,
+                zcode VARCHAR, zscode VARCHAR, del_yn VARCHAR,
                 snapshot_date DATE, synced_at VARCHAR, row_count INTEGER
             )
             """
         )
         conn.execute(
             "INSERT INTO t VALUES "
-            "('S1','C1','ME','2','04','N',DATE '2026-05-22','2026-05-22T03:00:00+00:00',1)"
+            "('S1','C1','ME','환경부','2','04','11','11680','N',"
+            "DATE '2026-05-22','2026-05-22T03:00:00+00:00',1)"
         )
         out = snap_dir / "chargers_2026-05-22.parquet"
         conn.execute(f"COPY t TO '{out}' (FORMAT PARQUET, COMPRESSION ZSTD)")

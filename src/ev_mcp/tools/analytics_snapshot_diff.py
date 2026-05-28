@@ -20,10 +20,12 @@ MIN_SNAPSHOTS_REQUIRED = 2  # 비교하려면 관측이 최소 2개
 
 _DIFF_QUERY = """
     WITH f AS (
-        SELECT stat_id, chger_id, stat FROM v_all WHERE snapshot_date = ?
+        SELECT stat_id, chger_id, stat FROM v_all
+        WHERE snapshot_date = ? AND del_yn = 'N'
     ),
     t AS (
-        SELECT stat_id, chger_id, stat FROM v_all WHERE snapshot_date = ?
+        SELECT stat_id, chger_id, stat FROM v_all
+        WHERE snapshot_date = ? AND del_yn = 'N'
     )
     SELECT
         COUNT(*) FILTER (WHERE f.chger_id IS NULL) AS appeared,
