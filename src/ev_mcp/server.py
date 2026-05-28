@@ -45,15 +45,19 @@ from .context import ToolContext
 from .domain import (
     ChargerNearby,
     ChargerSummary,
+    InventoryTrendRow,
     OperatorHealthRow,
     RegionalDensityRow,
+    SnapshotDiff,
     StationDetails,
     StatusChange,
 )
 from .settings import Settings, load_settings
 from .store import open_store
+from .tools.analytics_inventory_trend import inventory_trend as _inventory_trend
 from .tools.analytics_operator_health import analyze_operator_health as _analyze_operator_health
 from .tools.analytics_regional_density import regional_density as _regional_density
+from .tools.analytics_snapshot_diff import snapshot_diff as _snapshot_diff
 from .tools.codes import CodeCategory
 from .tools.codes import lookup_codes as _lookup_codes
 from .tools.nearby import find_chargers_nearby as _find_nearby
@@ -341,6 +345,36 @@ def _register_tools(mcp: FastMCP, ctx: ToolContext) -> None:
         "강남구 충전기 밀도" 같은 광역 질문 답변에 활용.
         """
         return _regional_density(group_by=group_by, limit=limit, ctx=ctx)
+
+    @mcp.tool(annotations=READ_ONLY)
+    def snapshot_diff(
+        *,
+        from_date: str | None = None,
+        to_date: str | None = None,
+    ) -> SnapshotDiff:
+        """두 스냅샷 날짜 사이 충전기 변화 — 신규/제거/상태변경 집계.
+
+        Parquet 스냅샷 관측열 위에서 비교. 인자 없이 호출하면 최근 2개 관측을
+        자동 비교한다. from_date/to_date 는 "YYYY-MM-DD". 결과의 synced_at 으로
+        두 관측이 실제로 다른 데이터인지 확인 가능.
+
+        "지난번 대비 충전기 얼마나 늘었어?" 같은 질문에 사용.
+        """
+        return _snapshot_diff(from_date=from_date, to_date=to_date, ctx=ctx)
+
+    @mcp.tool(annotations=READ_ONLY)
+    def inventory_trend(
+        *,
+        limit: int = 30,
+    ) -> list[InventoryTrendRow]:
+        """관측일별 충전기 인벤토리 추세 — 총수/DC/가용/운영자 수 + 증감.
+
+        Parquet 스냅샷 관측열 위에서 snapshot_date 별 집계. 스냅샷은 불규칙
+        관측열이라 날짜 간격이 일정하지 않을 수 있다. limit 기본 30, 최대 90.
+
+        "충전기 수가 어떻게 늘고 있어?" 같은 질문에 사용.
+        """
+        return _inventory_trend(limit=limit, ctx=ctx)
 
     @mcp.tool(annotations=READ_ONLY)
     def lookup_codes(*, category: CodeCategory) -> dict[str, str]:

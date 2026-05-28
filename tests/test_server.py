@@ -35,6 +35,9 @@ async def test_build_server_registers_all_tools(settings: Settings) -> None:
         # Phase 10 (ADR-001): analytics sidecar
         "analyze_operator_health",
         "regional_density",
+        # Phase 11: time-series tools
+        "snapshot_diff",
+        "inventory_trend",
     }
 
 
