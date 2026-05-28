@@ -237,3 +237,37 @@ class StatusChange(BaseModel):
             last_tedt=row.last_tedt,
             now_tsdt=row.now_tsdt,
         )
+
+
+class SnapshotDiff(BaseModel):
+    """snapshot_diff 의 결과 — 두 스냅샷 사이 변화 집계.
+
+    스칼라 집계만 담는다 (508k 행 나열 금지 — 토큰 예산). from=이전 관측,
+    to=이후 관측. synced_at 을 함께 노출해 "두 관측이 실은 동일 데이터" 인
+    상황을 숨기지 않는다.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_date: str
+    to_date: str
+    from_synced_at: str
+    to_synced_at: str
+    appeared: int  # to 에만 있는 충전기 (신규)
+    disappeared: int  # from 에만 있는 충전기 (제거)
+    stat_changed: int  # 양쪽에 있으나 stat 코드가 바뀐 충전기
+    net_change: int  # appeared - disappeared
+
+
+class InventoryTrendRow(BaseModel):
+    """inventory_trend 의 한 행 — 관측일별 인벤토리 스냅샷."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    snapshot_date: str
+    synced_at: str
+    total_chargers: int
+    dc_count: int  # 급속 (DC 차데모/콤보/NACS) 수
+    available_count: int  # stat='2' 충전대기
+    distinct_operators: int
+    delta_total: int | None = None  # 직전 관측 대비 총 충전기 증감. 첫 행은 None
