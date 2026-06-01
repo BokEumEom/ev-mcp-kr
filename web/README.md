@@ -115,13 +115,18 @@ python -m http.server 8000
 └── web/  (이 디렉토리)
 ```
 
-Parquet 없으면:
+데이터를 최신화하려면 (Parquet 없거나 오래됐을 때):
 
 ```bash
 source .venv/bin/activate
-ev-mcp-sync                            # data.go.kr → data/chargers.db
-python scratch/duckdb_poc.py           # SQLite → Parquet (1.5초)
+ev-mcp-sync                              # data.go.kr → data/chargers.db (+ 날짜별 스냅샷)
+python scripts/publish_web_snapshot.py   # 최신 정상 스냅샷 → web 이 보는 Parquet
 ```
+
+> **중요:** `ev-mcp-sync` 만으로는 web 데이터가 갱신되지 않습니다. sync 는 `data/chargers.db`
+> 와 `data/snapshots/` 를 갱신할 뿐, web 이 fetch 하는 `scratch/chargers_snapshot.parquet`
+> 은 `publish_web_snapshot.py` 를 한 번 더 돌려야 바뀝니다. (이 단계를 빼먹으면 web 이 옛
+> 데이터를 계속 보여줍니다.)
 
 ## 데이터 흐름
 
@@ -129,10 +134,13 @@ python scratch/duckdb_poc.py           # SQLite → Parquet (1.5초)
 data.go.kr API
    │ (ev-mcp-sync, 일별)
    ▼
-data/chargers.db (SQLite, Phase 6, 257MB)
-   │ (scratch/duckdb_poc.py)
+data/chargers.db (SQLite, Phase 6)
+   │ (ev-mcp-sync --snapshot, Phase 11)
    ▼
-scratch/chargers_snapshot.parquet (14.4MB, ZSTD 압축)
+data/snapshots/chargers_YYYY-MM-DD.parquet (날짜별 시계열 스냅샷)
+   │ (scripts/publish_web_snapshot.py — 최신 정상 스냅샷 복사)
+   ▼
+scratch/chargers_snapshot.parquet (web 이 fetch 하는 단일 파일, ZSTD 압축)
    │ (브라우저 HTTP fetch, ~15MB)
    ▼
 DuckDB-WASM (Web Worker, in-memory)
