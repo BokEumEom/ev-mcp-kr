@@ -112,12 +112,12 @@ const Q_KPI = `
   )
   SELECT
     COUNT(*) AS total_all,
-    SUM(CASE WHEN ts IS NOT NULL THEN 1 ELSE 0 END) AS total_with_ts,
-    SUM(CASE WHEN ts IS NOT NULL AND now_ts - ts < INTERVAL '1 day' THEN 1 ELSE 0 END) AS active_1d,
-    SUM(CASE WHEN ts IS NOT NULL AND now_ts - ts < INTERVAL '7 days' THEN 1 ELSE 0 END) AS active_7d,
-    SUM(CASE WHEN ts IS NOT NULL AND now_ts - ts < INTERVAL '30 days' THEN 1 ELSE 0 END) AS active_30d,
-    SUM(CASE WHEN ts IS NOT NULL AND now_ts - ts > INTERVAL '60 days' THEN 1 ELSE 0 END) AS dormant_60d,
-    SUM(CASE WHEN stat = '3' THEN 1 ELSE 0 END) AS now_charging,
+    COUNT(*) FILTER (WHERE ts IS NOT NULL) AS total_with_ts,
+    COUNT(*) FILTER (WHERE ts IS NOT NULL AND now_ts - ts < INTERVAL '1 day') AS active_1d,
+    COUNT(*) FILTER (WHERE ts IS NOT NULL AND now_ts - ts < INTERVAL '7 days') AS active_7d,
+    COUNT(*) FILTER (WHERE ts IS NOT NULL AND now_ts - ts < INTERVAL '30 days') AS active_30d,
+    COUNT(*) FILTER (WHERE ts IS NOT NULL AND now_ts - ts > INTERVAL '60 days') AS dormant_60d,
+    COUNT(*) FILTER (WHERE stat = '3') AS now_charging,
     MAX(now_ts) AS snapshot_ts
   FROM base
 `;

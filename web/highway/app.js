@@ -119,10 +119,10 @@ const Q_KPI = `
     COUNT(*)                                                                      AS total_chargers,
     COUNT(DISTINCT stat_id)                                                       AS stations,
     COUNT(DISTINCT busi_id)                                                       AS operators,
-    SUM(CASE WHEN stat = '${AVAILABLE_CODE}' THEN 1 ELSE 0 END)                   AS available_now,
+    COUNT(*) FILTER (WHERE stat = '${AVAILABLE_CODE}')                   AS available_now,
     AVG(TRY_CAST(output AS DOUBLE))                                               AS avg_output_kw,
     AVG(CASE WHEN TRY_CAST(output AS DOUBLE) >= 200 THEN 1.0 ELSE 0.0 END)        AS ratio_200plus,
-    SUM(CASE WHEN TRY_CAST(output AS DOUBLE) >= 200 THEN 1 ELSE 0 END)            AS count_200plus,
+    COUNT(*) FILTER (WHERE TRY_CAST(output AS DOUBLE) >= 200)            AS count_200plus,
     AVG(CASE WHEN chger_type IN (${inList(DC_CODES)}) THEN 1.0 ELSE 0.0 END)      AS dc_ratio,
     MAX(stat_upd_dt)                                                              AS latest_upd
   FROM 'chargers.parquet'

@@ -146,8 +146,8 @@ function qStationDetail(statId) {
       COUNT(*) AS chargers,
       AVG(TRY_CAST(output AS DOUBLE)) AS avg_kw,
       AVG(CASE WHEN chger_type IN (${DC_IN}) THEN 1.0 ELSE 0.0 END) AS dc_ratio,
-      SUM(CASE WHEN stat = '2' THEN 1 ELSE 0 END) AS available,
-      SUM(CASE WHEN stat = '3' THEN 1 ELSE 0 END) AS charging,
+      COUNT(*) FILTER (WHERE stat = '2') AS available,
+      COUNT(*) FILTER (WHERE stat = '3') AS charging,
       MAX(last_tsdt) AS latest_tsdt
     FROM 'chargers.parquet' AS p
     WHERE ${HW_FILTER} AND stat_id = '${esc}'

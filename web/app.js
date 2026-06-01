@@ -152,13 +152,13 @@ const Q_KPI = `
     COUNT(*)                                                                          AS total_chargers,
     COUNT(DISTINCT busi_id)                                                           AS operator_count,
     COUNT(DISTINCT zscode)                                                            AS sigungu_count,
-    SUM(CASE WHEN stat = '${AVAILABLE_CODE}' THEN 1 ELSE 0 END)                       AS available_now,
+    COUNT(*) FILTER (WHERE stat = '${AVAILABLE_CODE}')                       AS available_now,
     AVG(CASE WHEN chger_type IN (${inList(DC_CODES)}) THEN 1.0 ELSE 0.0 END)          AS dc_ratio,
-    SUM(CASE WHEN chger_type IN (${inList(DC_CODES)}) THEN 1 ELSE 0 END)              AS dc_count,
+    COUNT(*) FILTER (WHERE chger_type IN (${inList(DC_CODES)}))              AS dc_count,
     AVG(CASE WHEN use_time LIKE '%24%' THEN 1.0 ELSE 0.0 END)                         AS h24_ratio,
-    SUM(CASE WHEN use_time LIKE '%24%' THEN 1 ELSE 0 END)                             AS h24_count,
+    COUNT(*) FILTER (WHERE use_time LIKE '%24%')                             AS h24_count,
     AVG(CASE WHEN parking_free = 'Y' THEN 1.0 ELSE 0.0 END)                           AS free_parking_ratio,
-    SUM(CASE WHEN parking_free = 'Y' THEN 1 ELSE 0 END)                               AS free_parking_count,
+    COUNT(*) FILTER (WHERE parking_free = 'Y')                               AS free_parking_count,
     AVG(TRY_CAST(output AS DOUBLE))                                                   AS avg_output_kw,
     MAX(stat_upd_dt)                                                                  AS latest_upd
   FROM 'chargers.parquet'
@@ -170,9 +170,9 @@ const Q_OPERATORS = `
     busi_id,
     ANY_VALUE(busi_nm)                                                            AS busi_nm,
     COUNT(*)                                                                      AS total_chargers,
-    SUM(CASE WHEN stat IN (${inList(DOWNTIME_CODES)}) THEN 1 ELSE 0 END)          AS downtime_count,
+    COUNT(*) FILTER (WHERE stat IN (${inList(DOWNTIME_CODES)}))          AS downtime_count,
     AVG(CASE WHEN stat IN (${inList(DOWNTIME_CODES)}) THEN 1.0 ELSE 0.0 END)      AS downtime_ratio,
-    SUM(CASE WHEN stat = '${UNMONITORED_CODE}' THEN 1 ELSE 0 END)                 AS unmonitored_count,
+    COUNT(*) FILTER (WHERE stat = '${UNMONITORED_CODE}')                 AS unmonitored_count,
     AVG(CASE WHEN stat = '${UNMONITORED_CODE}' THEN 1.0 ELSE 0.0 END)             AS unmonitored_ratio
   FROM 'chargers.parquet'
   WHERE del_yn = 'N'
@@ -197,7 +197,7 @@ const Q_DENSITY = `
 const Q_SIDO_DC = `
   SELECT zcode,
     COUNT(*) AS total_chargers,
-    SUM(CASE WHEN chger_type IN (${inList(DC_CODES)}) THEN 1 ELSE 0 END) AS dc_count,
+    COUNT(*) FILTER (WHERE chger_type IN (${inList(DC_CODES)})) AS dc_count,
     AVG(CASE WHEN chger_type IN (${inList(DC_CODES)}) THEN 1.0 ELSE 0.0 END) AS dc_ratio
   FROM 'chargers.parquet'
   WHERE del_yn = 'N'
