@@ -96,6 +96,9 @@ class AnalyticsClient:
                     ".env 의 R2_* 필드를 채우거나 SNAPSHOT_SOURCE=local 로 두세요."
                 )
             self._configure_r2(conn)
+            # Stage 10.1 forward dependency: R2 Parquet 도 snapshot_date /
+            # synced_at / row_count 컬럼을 임베드해야 v_all·v_latest 가 동작
+            # (snapshot.py 와 동일 스키마).
             source = f"read_parquet('s3://{bucket}/chargers_*.parquet')"
         else:
             raise AnalyticsError(

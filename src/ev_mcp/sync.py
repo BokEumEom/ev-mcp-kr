@@ -21,7 +21,7 @@ import structlog
 from .client import EvChargerClient, EvChargerError
 from .server import configure_logging
 from .settings import load_settings
-from .snapshot import DEFAULT_SNAPSHOT_DIR, write_snapshot
+from .snapshot import write_snapshot
 from .store import open_store
 
 logger = structlog.get_logger("ev_mcp.sync")
@@ -109,7 +109,7 @@ async def sync(
     store.close()
 
     if snapshot:
-        result = write_snapshot(db_path, DEFAULT_SNAPSHOT_DIR, force=False)
+        result = write_snapshot(db_path, settings.snapshot_dir, force=False)
         if result is None:
             logger.info("snapshot_skipped", reason="synced_at_unchanged")
         else:

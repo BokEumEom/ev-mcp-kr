@@ -28,7 +28,10 @@ class Settings(BaseSettings):
     # snapshot_source="r2" 로 전환.
     snapshot_path: Path = Field(
         default=Path("scratch/chargers_snapshot.parquet"),
-        description="로컬 Parquet 스냅샷 경로 (snapshot_source='local' 일 때 사용)",
+        description=(
+            "DEPRECATED — Phase 10 단일 Parquet 경로. Phase 11 부터 로컬 분석은 "
+            "snapshot_dir 의 glob 을 사용. 호환을 위해 필드만 남김."
+        ),
     )
     snapshot_dir: Path = Field(
         default=Path("data/snapshots"),
@@ -36,7 +39,7 @@ class Settings(BaseSettings):
     )
     snapshot_source: str = Field(
         default="local",
-        description="분석 데이터 소스: 'local' (snapshot_path) 또는 'r2' (Cloudflare R2)",
+        description="분석 데이터 소스: 'local' (snapshot_dir) 또는 'r2' (Cloudflare R2)",
     )
     r2_account_id: SecretStr | None = Field(default=None, description="Cloudflare R2 account ID")
     r2_access_key_id: SecretStr | None = Field(default=None, description="R2 S3-compatible key ID")
