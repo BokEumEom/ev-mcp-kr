@@ -49,7 +49,7 @@ const PALETTE = [C.primary, C.info, C.warn, C.purple, C.rose, C.amber];
 const PALETTE_DIM = PALETTE.map((c) => c + "33");
 
 async function initDuckDB() {
-  setStatus("DuckDB-WASM 초기화…");
+  setStatus("분석 엔진 준비 중…");
   const bundles = duckdb.getJsDelivrBundles();
   const bundle = await duckdb.selectBundle(bundles);
   const workerUrl = URL.createObjectURL(new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" }));
@@ -58,7 +58,7 @@ async function initDuckDB() {
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(workerUrl);
 
-  setStatus("Parquet 로드…");
+  setStatus("충전소 데이터 불러오는 중…");
   const res = await fetch(PARQUET_URL);
   if (!res.ok) throw new Error(`Parquet fetch 실패: ${res.status}`);
   const buf = new Uint8Array(await res.arrayBuffer());
@@ -737,7 +737,7 @@ async function main() {
     const db = await initDuckDB();
     state.conn = await db.connect();
 
-    setStatus("entity list + 코드 로드…");
+    setStatus("비교 데이터 불러오는 중…");
     const [opList, hwList, busiCodes] = await Promise.all([
       runQuery(state.conn, Q_OPERATORS),
       runQuery(state.conn, Q_HIGHWAYS),

@@ -82,7 +82,7 @@ const STAT_COLOR = {
 };
 
 async function initDuckDB() {
-  setStatus("DuckDB-WASM 번들 선택 중…");
+  setStatus("분석 엔진 준비 중…");
   const bundles = duckdb.getJsDelivrBundles();
   const bundle = await duckdb.selectBundle(bundles);
   const workerUrl = URL.createObjectURL(
@@ -95,11 +95,11 @@ async function initDuckDB() {
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   URL.revokeObjectURL(workerUrl);
 
-  setStatus(`Parquet 다운로드 중 (${PARQUET_URL})…`);
+  setStatus(`충전소 데이터 불러오는 중…`);
   const res = await fetch(PARQUET_URL);
   if (!res.ok) throw new Error(`Parquet fetch 실패: ${res.status} ${PARQUET_URL}`);
   const buf = new Uint8Array(await res.arrayBuffer());
-  setStatus(`Parquet 등록 중 (${(buf.byteLength / 1024 / 1024).toFixed(1)}MB)…`);
+  setStatus(`충전소 데이터 불러오는 중… (${(buf.byteLength / 1024 / 1024).toFixed(1)}MB)`);
   await db.registerFileBuffer("chargers.parquet", buf);
   return db;
 }
@@ -522,7 +522,7 @@ async function main() {
     const db = await initDuckDB();
     state.conn = await db.connect();
 
-    setStatus("코드 + 휴게소 list 로드…");
+    setStatus("휴게소 데이터 불러오는 중…");
     const [codes, stationList] = await Promise.all([
       loadCodes(),
       runQuery(state.conn, Q_STATION_LIST),

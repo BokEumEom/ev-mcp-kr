@@ -61,7 +61,7 @@ function radiusByCount(n) {
 
 // ─── DuckDB-WASM 초기화 ───
 async function initDuckDB() {
-  setStatus("DuckDB-WASM 번들 선택 중…");
+  setStatus("분석 엔진 준비 중…");
   const bundles = duckdb.getJsDelivrBundles();
   const bundle = await duckdb.selectBundle(bundles);
   const workerUrl = URL.createObjectURL(
@@ -76,11 +76,11 @@ async function initDuckDB() {
 
   $("duckdb-version").textContent = "v" + (await db.getVersion());
 
-  setStatus(`Parquet 다운로드 중 (${PARQUET_URL})…`);
+  setStatus(`충전소 데이터 불러오는 중…`);
   const res = await fetch(PARQUET_URL);
   if (!res.ok) throw new Error(`Parquet fetch 실패: ${res.status} ${PARQUET_URL}`);
   const buf = new Uint8Array(await res.arrayBuffer());
-  setStatus(`Parquet 등록 중 (${(buf.byteLength / 1024 / 1024).toFixed(1)}MB)…`);
+  setStatus(`충전소 데이터 불러오는 중… (${(buf.byteLength / 1024 / 1024).toFixed(1)}MB)`);
   await db.registerFileBuffer("chargers.parquet", buf);
   return db;
 }
@@ -248,7 +248,7 @@ async function main() {
     const db = await initDuckDB();
     const conn = await db.connect();
 
-    setStatus("휴게소 622곳 쿼리 중…");
+    setStatus("휴게소 위치 불러오는 중…");
     const [codes, stations] = await Promise.all([
       loadCodes(),
       runQuery(conn, Q_STATIONS),
