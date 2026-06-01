@@ -69,6 +69,13 @@ def write_snapshot(
         raise RuntimeError(
             "store 가 한 번도 sync 되지 않았습니다 — 먼저 ev-mcp-sync 를 실행하세요"
         )
+    if row_count == 0:
+        # 0행 스냅샷은 더 최신 snapshot_date 를 가져 v_latest 가 그걸 골라
+        # analytics/web 이 빈 데이터를 보게 만든다 (2026-06-01 실 사고). 막는다.
+        raise RuntimeError(
+            "store 에 충전기가 0건입니다 — sync 가 완료되지 않았거나 빈 DB 입니다. "
+            "빈 스냅샷을 만들지 않습니다. ev-mcp-sync 를 먼저 완료하세요."
+        )
     synced_at_iso = synced_at.isoformat()
 
     snapshot_dir.mkdir(parents=True, exist_ok=True)

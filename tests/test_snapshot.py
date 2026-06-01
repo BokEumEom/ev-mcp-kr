@@ -94,3 +94,22 @@ def test_write_snapshot_raises_for_unsynced_store(tmp_path: Path) -> None:
     store.close()
     with pytest.raises(RuntimeError, match="ev-mcp-sync"):
         write_snapshot(db_path, tmp_path / "snapshots")
+
+
+def test_write_snapshot_raises_for_empty_store(tmp_path: Path) -> None:
+    """synced_at 은 있지만 충전기가 0건 → 빈 Parquet 을 만들지 않고 RuntimeError.
+
+    실 사고(2026-06-01): 빈 store 에서 0행 스냅샷(874B)이 생성돼, snapshot_date 가
+    더 최신이라 v_latest 가 그걸 골라 analytics/web 이 빈 데이터를 봄. 그 재발 방지.
+    """
+    db_path = tmp_path / "chargers.db"
+    snap_dir = tmp_path / "snapshots"
+    store = open_store(db_path)
+    try:
+        store.set_state("last_synced_at", datetime(2026, 6, 1, 3, 0, tzinfo=UTC).isoformat())
+    finally:
+        store.close()
+    with pytest.raises(RuntimeError, match="0건"):
+        write_snapshot(db_path, snap_dir)
+    # 빈 Parquet 이 디렉터리에 남으면 안 됨
+    assert not list(snap_dir.glob("*.parquet")) if snap_dir.exists() else True
