@@ -29,6 +29,7 @@ python -m mypy src/
 - **Phase 9 (완료):** TypeScript Cloudflare Workers 포팅 (`workers/`). 두-DO 아키텍처 (per-session McpAgent + 단일 글로벌 InventoryStore), cron sync, smart upsert (rows-written cap 회피). → `docs/PHASE9.md`
 - **Phase 10 Stage 10.2~10.5 (완료):** DuckDB 분석 사이드카 (ADR-001). `src/ev_mcp/analytics.py` + 새 MCP 툴 2개 (`analyze_operator_health`, `regional_density`) + 인터랙티브 web 대시보드 8 페이지. Stage 10.4 데이터 품질 수정 (`stat='9'` 미연동 분리). → `docs/PHASE10.md`, `docs/adr/ADR-001-duckdb-analytics.md`, `web/README.md`
 - **Phase 10 Stage 10.1 (미진행):** Workers R2 일별 Parquet export. 사용자 R2 준비 후 별도 사이클.
+- **Phase 11 (완료):** 시계열 분석 기반 — 날짜별 스냅샷 export (`ev-mcp-snapshot`, synced_at 중복 스킵) + analytics view 레이어 (`v_all`/`v_latest`, `{source}` placeholder 제거) + 시계열 MCP 툴 2개 (`snapshot_diff`, `inventory_trend`). pytest 135건. → `docs/PHASE11.md`
 
 전체 계획서: `docs/PLAN.md`. ADR: `docs/adr/`.
 
