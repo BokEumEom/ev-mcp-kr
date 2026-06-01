@@ -16,15 +16,18 @@ from ev_mcp.store import ChargerStore
 
 
 @pytest.fixture
-def settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
+def settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Settings:
     """Isolated Settings instance — never reads a developer's real .env / shell key.
 
     db_path is forced to :memory: so build_server() in tests doesn't touch the
-    developer's data/chargers.db.
+    developer's data/chargers.db. snapshot_dir is forced under tmp_path so a sync
+    smoke test never writes into the real data/snapshots/ (which would pollute the
+    analytics v_latest view).
     """
     monkeypatch.setenv("SERVICE_KEY", "TEST_KEY_NOT_REAL")
     monkeypatch.delenv("VWORLD_KEY", raising=False)
     monkeypatch.setenv("DB_PATH", ":memory:")
+    monkeypatch.setenv("SNAPSHOT_DIR", str(tmp_path / "snapshots"))
     return Settings(_env_file=None)  # type: ignore[call-arg]
 
 

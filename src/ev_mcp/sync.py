@@ -109,11 +109,17 @@ async def sync(
     store.close()
 
     if snapshot:
-        result = write_snapshot(db_path, settings.snapshot_dir, force=False)
-        if result is None:
-            logger.info("snapshot_skipped", reason="synced_at_unchanged")
+        # sync 는 이미 성공했다. 스냅샷 단계 실패(0건·디스크 등)가 sync 명령
+        # 전체를 죽이면 안 된다 — 경고만 남기고 끝낸다.
+        try:
+            result = write_snapshot(db_path, settings.snapshot_dir, force=False)
+        except RuntimeError as e:
+            logger.warning("snapshot_failed", error=str(e))
         else:
-            logger.info("snapshot_written", path=str(result))
+            if result is None:
+                logger.info("snapshot_skipped", reason="synced_at_unchanged")
+            else:
+                logger.info("snapshot_written", path=str(result))
 
 
 def main() -> None:
