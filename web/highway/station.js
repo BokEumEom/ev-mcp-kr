@@ -298,7 +298,7 @@ function renderStatusChart(chargers, codes) {
       datasets: [{
         data: entries.map(([, n]) => n),
         backgroundColor: entries.map(([s]) => STAT_COLOR[s] || C.textDim),
-        borderColor: "#131820",
+        borderColor: "#ffffff",
         borderWidth: 2,
       }],
     },

@@ -154,9 +154,9 @@ function buildMap() {
     attributionControl: false, // footer 에서 별도 표시
   });
 
-  // 다크 모드와 어울리는 OSM 변형 타일 (CARTO Dark Matter)
+  // 밝은 UI 와 어울리는 OSM 변형 타일 (CARTO Positron)
   L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     {
       maxZoom: 19,
       subdomains: "abcd",

@@ -541,7 +541,7 @@ function renderDormantBuckets(rows) {
       datasets: [{
         data,
         backgroundColor: colors,
-        borderColor: "#131820",
+        borderColor: "#ffffff",
         borderWidth: 2,
       }],
     },

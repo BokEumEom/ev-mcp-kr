@@ -539,7 +539,7 @@ function renderOps(ops, codes) {
       datasets: [{
         data,
         backgroundColor: OP_PALETTE.slice(0, data.length),
-        borderColor: "#131820",
+        borderColor: "#ffffff",
         borderWidth: 2,
       }],
     },

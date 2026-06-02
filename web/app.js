@@ -580,7 +580,7 @@ function renderChgerType(rows, codes) {
       datasets: [{
         data,
         backgroundColor: palette.slice(0, data.length),
-        borderColor: "#131820",
+        borderColor: "#ffffff",
         borderWidth: 2,
       }],
     },
