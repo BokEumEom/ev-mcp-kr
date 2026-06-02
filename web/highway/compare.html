@@ -86,10 +86,13 @@
       <div class="chart-grid">
         <section class="chart-card" id="card-radar" hidden>
           <div class="chart-header">
-            <h3>Radar — 6 차원 강도</h3>
+            <h3>Radar — 품질 지표 (절대 기준)</h3>
             <p class="chart-desc">
-              각 축은 0~100 정규화 (해당 차원 max 가 100). 면적이 클수록 종합 우수,
-              모양으로 전략 파악 (균형/특화).
+              평균 출력 · DC 비율 · 비가동률 · 미연동률 의 <strong>절대 기준</strong> 정규화
+              (비율은 0~100%, 출력은 350kW 만점). 바깥쪽일수록 우수 — 비가동·미연동은
+              낮을수록 바깥. <strong>규모 지표(충전기·휴게소 수)는 제외</strong> — 규모 큰
+              entity 가 시각적으로 우세해 보이는 왜곡을 막기 위해 아래 표에서만 본다.
+              tooltip 에 실제 원본값.
             </p>
           </div>
           <div class="chart-wrap chart-wrap-radar">

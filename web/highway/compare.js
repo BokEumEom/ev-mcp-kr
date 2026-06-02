@@ -338,24 +338,27 @@ function destroyAll() {
 
 // ─── KPI 정의 ───
 
+// radar: true 인 비율/질적 지표만 radar 축에 쓴다 (규모 지표는 표에만).
+// radarMax: 절대 정규화 기준 — 비율은 1, 출력은 350kW 만점. 그룹 내 상대가 아니라
+// 절대 기준이라 "비교 대상 중 최악이 만점"이 되는 왜곡이 없다.
 const KPI_DEFS_OP = [
   { key: "chargers", label: "충전기 수", fmt: fmtInt, higherBetter: true },
   { key: "stations", label: "휴게소 수", fmt: fmtInt, higherBetter: true },
   { key: "sido_count", label: "진입 시도", fmt: fmtInt, higherBetter: true },
-  { key: "avg_kw", label: "평균 출력 (kW)", fmt: (v) => fmtNum(v, 1), higherBetter: true },
-  { key: "dc_ratio", label: "DC 비율", fmt: (v) => fmtPct(v, 1), higherBetter: true },
-  { key: "downtime", label: "비가동률", fmt: (v) => fmtPct(v, 1), higherBetter: false },
-  { key: "unmonitored", label: "미연동률", fmt: (v) => fmtPct(v, 1), higherBetter: false },
+  { key: "avg_kw", label: "평균 출력 (kW)", fmt: (v) => fmtNum(v, 1), higherBetter: true, radar: true, radarMax: 350 },
+  { key: "dc_ratio", label: "DC 비율", fmt: (v) => fmtPct(v, 1), higherBetter: true, radar: true, radarMax: 1 },
+  { key: "downtime", label: "비가동률", fmt: (v) => fmtPct(v, 1), higherBetter: false, radar: true, radarMax: 1 },
+  { key: "unmonitored", label: "미연동률", fmt: (v) => fmtPct(v, 1), higherBetter: false, radar: true, radarMax: 1 },
 ];
 
 const KPI_DEFS_HW = [
   { key: "chargers", label: "충전기 수", fmt: fmtInt, higherBetter: true },
   { key: "stations", label: "휴게소 수", fmt: fmtInt, higherBetter: true },
   { key: "operator_count", label: "운영자 다양성", fmt: fmtInt, higherBetter: true },
-  { key: "avg_kw", label: "평균 출력 (kW)", fmt: (v) => fmtNum(v, 1), higherBetter: true },
-  { key: "dc_ratio", label: "DC 비율", fmt: (v) => fmtPct(v, 1), higherBetter: true },
-  { key: "downtime", label: "비가동률", fmt: (v) => fmtPct(v, 1), higherBetter: false },
-  { key: "unmonitored", label: "미연동률", fmt: (v) => fmtPct(v, 1), higherBetter: false },
+  { key: "avg_kw", label: "평균 출력 (kW)", fmt: (v) => fmtNum(v, 1), higherBetter: true, radar: true, radarMax: 350 },
+  { key: "dc_ratio", label: "DC 비율", fmt: (v) => fmtPct(v, 1), higherBetter: true, radar: true, radarMax: 1 },
+  { key: "downtime", label: "비가동률", fmt: (v) => fmtPct(v, 1), higherBetter: false, radar: true, radarMax: 1 },
+  { key: "unmonitored", label: "미연동률", fmt: (v) => fmtPct(v, 1), higherBetter: false, radar: true, radarMax: 1 },
 ];
 
 // ─── 자동 인사이트 generator ───
@@ -424,33 +427,27 @@ function renderInsights(kpiData, type) {
 
 // ─── Radar Chart ───
 
+// 절대 기준 정규화 — 그룹 내 최댓값이 아니라 radarMax(비율=1, 출력=350kW) 기준.
+// 바깥쪽일수록 우수: 낮을수록 좋은 지표(비가동·미연동)는 반전.
+function radarNorm(def, v) {
+  const pct = Math.min(v / def.radarMax, 1) * 100;
+  return def.higherBetter ? pct : 100 - pct;
+}
+
 function renderRadar(kpiData, type) {
-  const defs = type === "operator" ? KPI_DEFS_OP : KPI_DEFS_HW;
-  // 6축으로 압축
-  const axes = defs.slice(0, 6);
+  // 규모 지표는 제외하고 비율/질적 지표만 (규모 큰 entity 가 시각적으로 우세해
+  // 보이는 왜곡 차단). 규모는 아래 KPI 표에서 본다.
+  const axes = (type === "operator" ? KPI_DEFS_OP : KPI_DEFS_HW).filter((d) => d.radar);
 
-  // 각 축의 max (정규화용)
-  const maxVals = axes.map((def) =>
-    Math.max(...kpiData.map((d) => Number(d[def.key]) || 0))
-  );
-
-  const datasets = kpiData.map((d, i) => {
-    const data = axes.map((def, ax) => {
-      const v = Number(d[def.key]) || 0;
-      const maxV = maxVals[ax];
-      const norm = maxV > 0 ? (v / maxV) * 100 : 0;
-      // 낮을수록 좋은 KPI 는 반전 (100 - norm)
-      return def.higherBetter ? norm : 100 - norm;
-    });
-    return {
-      label: d.nm,
-      data,
-      borderColor: PALETTE[i],
-      backgroundColor: PALETTE[i] + "33",
-      borderWidth: 2,
-      pointBackgroundColor: PALETTE[i],
-    };
-  });
+  const datasets = kpiData.map((d, i) => ({
+    label: d.nm,
+    data: axes.map((def) => radarNorm(def, Number(d[def.key]) || 0)),
+    raw: axes.map((def) => def.fmt(Number(d[def.key]) || 0)),
+    borderColor: PALETTE[i],
+    backgroundColor: PALETTE[i] + "33",
+    borderWidth: 2,
+    pointBackgroundColor: PALETTE[i],
+  }));
 
   new Chart($("chart-radar").getContext("2d"), {
     type: "radar",
@@ -472,7 +469,9 @@ function renderRadar(kpiData, type) {
         legend: { position: "bottom", labels: { color: C.text, boxWidth: 12 } },
         tooltip: {
           callbacks: {
-            label: (ctx) => `${ctx.dataset.label}: ${fmtNum(ctx.parsed.r, 1)}`,
+            // 정규화 점수(0~100)가 아니라 실제 원본값을 보여준다.
+            label: (ctx) =>
+              `${ctx.dataset.label}: ${ctx.dataset.raw[ctx.dataIndex]} (${fmtNum(ctx.parsed.r, 0)}점)`,
           },
         },
       },
