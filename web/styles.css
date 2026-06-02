@@ -87,6 +87,12 @@
   box-sizing: border-box;
 }
 
+/* hidden 속성을 권위있게 — .status/.kpi-grid 등이 display 를 지정해 [hidden] 을
+   덮어쓰던 버그 수정 (로딩 스피너가 데이터 로드 후에도 안 사라지던 원인). */
+[hidden] {
+  display: none !important;
+}
+
 /* Keyboard focus indicator — visible only for keyboard nav, not mouse clicks. */
 :focus-visible {
   outline: 2px solid var(--accent);
