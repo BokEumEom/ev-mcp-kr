@@ -90,6 +90,7 @@ async function initDuckDB() {
   if (!res.ok) throw new Error(`Parquet fetch 실패: ${res.status}`);
   const buf = new Uint8Array(await res.arrayBuffer());
   await db.registerFileBuffer("chargers.parquet", buf);
+  $("duckdb-version").textContent = "v" + (await db.getVersion());
   return db;
 }
 
@@ -776,6 +777,14 @@ async function main() {
       ...o, nm: busiCodes[o.id] || o.nm || o.id,
     }));
     state.entityList.highway = hwList;
+
+    // 헤더 meta 채우기 (다른 페이지와 통일)
+    const [tot] = await runQuery(
+      state.conn,
+      `SELECT COUNT(*) AS n, COUNT(DISTINCT stat_id) AS st FROM 'chargers.parquet' WHERE ${HW_FILTER}`,
+    );
+    $("snapshot-date").textContent = `${fmtInt(tot.n)} 충전기 / ${fmtInt(tot.st)} 휴게소`;
+    $("row-count").textContent = fmtInt(tot.n) + " rows";
 
     // type 토글
     document.querySelectorAll(".tab-btn").forEach((btn) => {

@@ -18,7 +18,7 @@
         } catch (e) {}
       })();
     </script>
-    <link rel="stylesheet" href="../styles.css?v=8" />
+    <link rel="stylesheet" href="../styles.css?v=9" />
   </head>
   <body>
     <header>
@@ -30,29 +30,6 @@
               <code>kind_detail = 'C001'</code> · 2~4개 entity 를 동시 비교 ·
               차이는 자동으로 찾아드립니다
             </p>
-
-            <div class="compare-controls">
-              <div class="type-tabs" role="tablist">
-                <button class="tab-btn is-active" data-type="operator">운영자</button>
-                <button class="tab-btn" data-type="highway">노선</button>
-              </div>
-
-              <div class="picker">
-                <label>비교 대상:</label>
-                <div class="chips" id="entity-chips"></div>
-                <div class="picker-add">
-                  <select id="entity-select">
-                    <option value="">+ 추가</option>
-                  </select>
-                </div>
-                <div class="presets">
-                  <span class="presets-label">추천:</span>
-                  <button class="preset-btn" data-preset="top4">top 4</button>
-                  <button class="preset-btn" data-preset="newcomers">신규 진입자</button>
-                  <button class="preset-btn" data-preset="incumbents">기존 강자</button>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="header-actions">
@@ -83,10 +60,40 @@
             </div>
           </div>
         </div>
+        <div class="meta">
+          <span id="snapshot-date">로딩 중…</span>
+          <span class="dot">·</span>
+          <span id="row-count">—</span>
+          <span class="dot">·</span>
+          <span class="powered">DuckDB-WASM <span id="duckdb-version">…</span></span>
+        </div>
       </div>
     </header>
 
     <main>
+      <div class="compare-controls">
+        <div class="type-tabs" role="tablist">
+          <button class="tab-btn is-active" data-type="operator">운영자</button>
+          <button class="tab-btn" data-type="highway">노선</button>
+        </div>
+
+        <div class="picker">
+          <label>비교 대상:</label>
+          <div class="chips" id="entity-chips"></div>
+          <div class="picker-add">
+            <select id="entity-select">
+              <option value="">+ 추가</option>
+            </select>
+          </div>
+          <div class="presets">
+            <span class="presets-label">추천:</span>
+            <button class="preset-btn" data-preset="top4">top 4</button>
+            <button class="preset-btn" data-preset="newcomers">신규 진입자</button>
+            <button class="preset-btn" data-preset="incumbents">기존 강자</button>
+          </div>
+        </div>
+      </div>
+
       <section id="status" class="status">
         <span class="spinner" aria-hidden="true"></span>
         <span id="status-text">DuckDB-WASM 초기화 중…</span>
@@ -194,8 +201,8 @@
       </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js?v=8"></script>
-    <script type="module" src="./compare.js?v=8"></script>
-    <script src="../theme.js?v=8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js?v=9"></script>
+    <script type="module" src="./compare.js?v=9"></script>
+    <script src="../theme.js?v=9"></script>
   </body>
 </html>
