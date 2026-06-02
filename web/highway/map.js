@@ -217,11 +217,15 @@ function updateStats(stations) {
 
 // ─── 노선 필터 ───
 
+// addr 에서 노선명이 추출 안 된 휴게소. 이전엔 드롭다운에서 빠져 "전체" 에서만
+// 보이고 노선 필터로는 영영 못 봤다 → 명시적 항목으로 노출.
+const UNKNOWN_HW = "(노선 미확인)";
+
 function populateHighwayFilter(stations) {
   const counts = new Map();
   for (const s of stations) {
-    if (!s.highway) continue;
-    counts.set(s.highway, (counts.get(s.highway) || 0) + 1);
+    const key = s.highway || UNKNOWN_HW;
+    counts.set(key, (counts.get(key) || 0) + 1);
   }
   const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
   const select = $("highway-select");
@@ -278,7 +282,9 @@ async function main() {
     // 노선 필터 변경 시 다시 그리기
     $("highway-select").addEventListener("change", (e) => {
       const hw = e.target.value;
-      const filtered = hw ? stations.filter((s) => s.highway === hw) : stations;
+      const filtered = hw
+        ? stations.filter((s) => (s.highway || UNKNOWN_HW) === hw)
+        : stations;
       map.removeLayer(layer);
       layer = plotMarkers(map, filtered, codes);
       updateStats(filtered);
