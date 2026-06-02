@@ -1,11 +1,12 @@
-/* web/docs/_docs.css — Anthropic 스타일 워밍 모노크롬 (ivory + clay + serif). */
+/* web/docs/_docs.css — 장문 읽기 모드 (ivory + serif). 강조색은 앱 대시보드 인디고로 브리지. */
 
 :root {
   --ivory:  #FAF9F5;
   --paper:  #FFFFFF;
   --slate:  #141413;
-  --clay:   #D97757;
-  --clay-d: #B85C3E;
+  /* 브랜드 브리지 — 강조색을 앱 대시보드 인디고로 통일 (읽기 treatment 는 유지) */
+  --clay:   #5b5bd6;
+  --clay-d: #4f46e5;
   --oat:    #E3DACC;
   --olive:  #788C5D;
   --g100:   #F0EEE6;
