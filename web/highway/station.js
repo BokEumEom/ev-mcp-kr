@@ -304,7 +304,7 @@ function renderStatusChart(chargers, codes) {
       datasets: [{
         data: entries.map(([, n]) => n),
         backgroundColor: entries.map(([s]) => STAT_COLOR[s] || C.textDim),
-        borderColor: "#ffffff",
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue("--bg-card").trim() || "#ffffff",
         borderWidth: 2,
       }],
     },

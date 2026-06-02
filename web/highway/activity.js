@@ -545,7 +545,7 @@ function renderDormantBuckets(rows) {
       datasets: [{
         data,
         backgroundColor: colors,
-        borderColor: "#ffffff",
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue("--bg-card").trim() || "#ffffff",
         borderWidth: 2,
       }],
     },

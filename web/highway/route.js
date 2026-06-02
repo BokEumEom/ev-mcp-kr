@@ -543,7 +543,7 @@ function renderOps(ops, codes) {
       datasets: [{
         data,
         backgroundColor: OP_PALETTE.slice(0, data.length),
-        borderColor: "#ffffff",
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue("--bg-card").trim() || "#ffffff",
         borderWidth: 2,
       }],
     },

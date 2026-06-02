@@ -158,9 +158,12 @@ function buildMap() {
     attributionControl: false, // footer 에서 별도 표시
   });
 
-  // 밝은 UI 와 어울리는 OSM 변형 타일 (CARTO Positron)
+  // 테마에 맞는 CARTO 타일 (다크=Dark Matter, 라이트=Positron)
+  const dark = document.documentElement.getAttribute("data-theme") === "dark";
   L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    dark
+      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     {
       maxZoom: 19,
       subdomains: "abcd",

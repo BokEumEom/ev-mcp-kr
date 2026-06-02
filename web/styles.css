@@ -48,6 +48,39 @@
   --font-sans:
     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard",
     "Noto Sans KR", system-ui, sans-serif;
+  color-scheme: light;
+}
+
+/* 다크 테마 — 같은 토큰을 다크 값으로 재정의. accent 는 브랜드 인디고를 다크용으로 밝힘. */
+:root[data-theme="dark"] {
+  --bg: #0a0c0f;
+  --bg-card: #131820;
+  --bg-elevated: #1a212b;
+  --bg-insight: #161b2e;
+  --border: #232c38;
+  --border-strong: #2e3a48;
+  --text: #ecf0f4;
+  --text-dim: #aab4c0;
+  --text-muted: #8b96a4;
+  --accent: #818cf8;
+  --accent-dim: #a5b4fc;
+  --accent-bg: rgba(129, 140, 248, 0.14);
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --info: #38bdf8;
+  --purple: #c4b5fd;
+  --chart-grid: #232c38;
+  --chart-amber: #fbbf24;
+  --chart-lime: #a3e635;
+  --chart-rose: #fb7185;
+  --kw-fast: #818cf8;
+  --kw-mid: #fbbf24;
+  --kw-slow: #38bdf8;
+  --kw-low: #6b7685;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
 }
 
 * {
@@ -1260,4 +1293,34 @@ footer {
     min-width: 44px;
     min-height: 44px;
   }
+}
+
+/* 테마 토글 버튼 (header-util 내) */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    color 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+}
+.theme-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+.theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: inline-flex; }
+:root[data-theme="dark"] .theme-toggle .icon-sun { display: inline-flex; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+@media (pointer: coarse) {
+  .theme-toggle { width: 44px; height: 44px; }
 }
