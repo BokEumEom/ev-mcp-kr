@@ -1,25 +1,30 @@
-/* ev-mcp 분석 대시보드 v2 — minimalist editorial dark mode */
+/* ev-mcp 분석 대시보드 v3 — 밝은 모던 SaaS (Linear/Vercel 톤) */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap");
 
 :root {
-  --bg: #0a0c0f;
-  --bg-card: #131820;
-  --bg-elevated: #1a212b;
-  --bg-insight: #161e1a;
-  --border: #232c38;
-  --border-strong: #2e3a48;
-  --text: #ecf0f4;
-  --text-dim: #8b96a4;
-  --text-muted: #5a6573;
-  --accent: #6ee7b7;
-  --accent-dim: #2dd4bf;
-  --accent-bg: rgba(110, 231, 183, 0.08);
-  --warn: #fbbf24;
-  --danger: #f87171;
-  --info: #7dd3fc;
-  --purple: #c4b5fd;
+  --bg: #f7f8fa;
+  --bg-card: #ffffff;
+  --bg-elevated: #f1f3f6;
+  --bg-insight: #f5f4ff;
+  --border: #e8eaee;
+  --border-strong: #d7dbe2;
+  --text: #18181b;
+  --text-dim: #5e6470;
+  --text-muted: #9aa1ad;
+  --accent: #5b5bd6;
+  --accent-dim: #4f46e5;
+  --accent-bg: rgba(91, 91, 214, 0.07);
+  --warn: #d97706;
+  --danger: #dc2626;
+  --info: #0284c7;
+  --purple: #7c3aed;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-md: 0 8px 24px rgba(16, 24, 40, 0.08);
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard",
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard",
     "Noto Sans KR", system-ui, sans-serif;
 }
 
@@ -60,8 +65,8 @@ code {
 
 header {
   border-bottom: 1px solid var(--border);
-  padding: 36px 24px 28px;
-  background: linear-gradient(180deg, #0c1116 0%, var(--bg) 100%);
+  padding: 32px 24px 24px;
+  background: var(--bg-card);
 }
 
 .header-inner {
@@ -97,15 +102,15 @@ h1 {
   gap: 8px;
   padding: 6px 12px;
   background: var(--accent-bg);
-  border: 1px solid rgba(110, 231, 183, 0.25);
+  border: 1px solid rgba(91, 91, 214, 0.2);
   border-radius: 999px;
   font-size: 12px;
   font-family: var(--font-mono);
   color: var(--accent);
 }
 .badge.highway {
-  background: rgba(125, 211, 252, 0.08);
-  border-color: rgba(125, 211, 252, 0.3);
+  background: rgba(2, 132, 199, 0.07);
+  border-color: rgba(2, 132, 199, 0.25);
   color: var(--info);
 }
 .badge.highway .badge-dot {
@@ -340,7 +345,7 @@ h1 {
 .heatmap-cell:hover {
   transform: scale(1.05);
   z-index: 2;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-md);
 }
 .heatmap-cell.empty {
   background: transparent;
@@ -357,7 +362,7 @@ h1 {
   font-weight: 600;
 }
 .heatmap-val.dark {
-  color: #0a0c0f;
+  color: #ffffff;
 }
 
 /* ─── Compare page ─── */
@@ -415,8 +420,8 @@ h1 {
   align-items: center;
   gap: 6px;
   padding: 5px 10px 5px 12px;
-  background: rgba(110, 231, 183, 0.12);
-  border: 1px solid rgba(110, 231, 183, 0.3);
+  background: rgba(91, 91, 214, 0.12);
+  border: 1px solid rgba(91, 91, 214, 0.3);
   border-radius: 999px;
   color: var(--text);
   font-size: 12px;
@@ -478,11 +483,11 @@ h1 {
 .compare-table .cell-best {
   color: var(--accent);
   font-weight: 600;
-  background: rgba(110, 231, 183, 0.07);
+  background: rgba(91, 91, 214, 0.07);
 }
 .compare-table .cell-worst {
   color: var(--danger);
-  background: rgba(248, 113, 113, 0.07);
+  background: rgba(220, 38, 38, 0.06);
 }
 .legend-best { color: var(--accent); font-weight: 600; }
 .legend-worst { color: var(--danger); font-weight: 600; }
@@ -634,7 +639,7 @@ td.mono-cell {
   position: absolute;
   bottom: 16px;
   right: 16px;
-  background: rgba(20, 24, 30, 0.92);
+  background: rgba(255, 255, 255, 0.96);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 14px 16px;
@@ -664,10 +669,10 @@ td.mono-cell {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.swatch-fast { background: #6ee7b7; }
-.swatch-mid  { background: #fcd34d; }
-.swatch-slow { background: #7dd3fc; }
-.swatch-low  { background: #8b95a4; }
+.swatch-fast { background: #5b5bd6; }
+.swatch-mid  { background: #ca8a04; }
+.swatch-slow { background: #0891b2; }
+.swatch-low  { background: #9aa1ad; }
 .legend-size {
   gap: 4px;
   flex-wrap: wrap;
@@ -826,7 +831,8 @@ main {
   padding: 18px 20px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
   color: var(--text-dim);
   font-size: 14px;
   margin-bottom: 24px;
@@ -856,12 +862,14 @@ main {
 .kpi {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 16px 18px;
-  transition: border-color 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 .kpi:hover {
-  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
 .kpi-label {
@@ -946,9 +954,10 @@ main {
 .chart-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 22px 24px;
   margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .chart-grid {
@@ -1038,8 +1047,8 @@ main {
 /* ─── Error panel ────────────────────────────────── */
 
 .error-panel {
-  background: #2a1414;
-  border: 1px solid #5a2424;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
   border-radius: 10px;
   padding: 22px;
   margin-top: 24px;
