@@ -2,11 +2,12 @@
 
 DuckDB-WASM + Chart.js + Leaflet 으로 만든 **순수 정적** 분석 도구. 한국환경공단 EV 충전소 Parquet 스냅샷을 브라우저가 직접 읽고 분석. 서버 부담 0, 빌드 step 0, npm 의존성 0.
 
-## 페이지 구조 (8 페이지)
+## 페이지 구조 (9 페이지)
 
 ```
 web/
 ├── index.html        — 메인 대시보드 (전체 데이터, 508k rows)
+├── trends.html       — 시계열 추세 (다중 날짜 스냅샷, Phase 11)
 └── highway/          — 고속도로 휴게소 전용 (kind_detail='C001', 1979대)
     ├── index.html    — 차트 (KPI 6, 인사이트 5, 차트 4)
     ├── map.html      — Leaflet 지도 (622곳 마커, 노선 필터)
@@ -18,6 +19,25 @@ web/
 ```
 
 각 페이지 헤더에 다른 6개 페이지로 자유 네비게이션. URL query string 으로 deep link 공유 (`?hw=`, `?id=`, `?type=&entities=`).
+
+## 시계열 추세 (`/web/trends.html`)
+
+여러 날짜 스냅샷을 DuckDB-WASM 으로 union 해 추세를 본다 (Phase 11).
+
+- **인벤토리 추세** — 날짜별 총/DC/가용/운영자 수 곡선
+- **기간 변화** — 두 날짜 선택 → 신규/사라짐/상태변경 (snapshot_diff)
+- **가동률·상태 추세** — 날짜별 비가동률·미연동률 (단일 스냅샷에선 불가능)
+
+데이터 준비 (`/scratch/web_snapshots/` + manifest.json):
+
+```bash
+source .venv/bin/activate
+# 실제 스냅샷이 며칠 쌓이기 전 데모용 합성 데이터 생성
+python scripts/synthesize_snapshots.py
+```
+
+> 합성 데이터는 페이지 상단 배너로 "데모"임을 명시한다. 실제 스냅샷이
+> 며칠 쌓이면(`ev-mcp-sync` 반복) 같은 페이지가 진짜 데이터로 동작한다.
 
 ## 메인 대시보드 (`/web/`)
 
