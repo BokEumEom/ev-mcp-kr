@@ -100,18 +100,21 @@
       </section>
 
       <!-- 시간대 차트 -->
-      <h2 class="section-title" id="time-title" hidden>시간대별 충전 패턴</h2>
+      <h2 class="section-title" id="time-title" hidden>마지막 충전 시각 분포</h2>
 
       <section class="chart-card" id="card-hour" hidden>
         <div class="chart-header">
-          <h3>last_tsdt 의 시간대 분포 (0~23시)</h3>
+          <h3>충전기별 마지막 충전 시작 시각 (0~23시)</h3>
           <p class="chart-desc">
-            점심(11~16시)이 전체의 약 70% — 식사 + 충전 패턴. 한국 EV 운전자의
-            장거리 이동 휴식 시간과 정확히 일치. 새벽(0~5시) 은 5% 미만으로 최소.
+            각 충전기의 <strong>마지막 충전 1건</strong>이 시작된 시각의 분포.
+            충전기가 하루에 여러 번 쓰여도 마지막 1건만 집계되므로, 이것은
+            <strong>시간대별 충전 수요·빈도가 아니다</strong>. 점심대가 높게 보이는 것은
+            스냅샷 직전에 마지막으로 쓰인 시각이 그쪽에 몰렸다는 의미일 뿐이다.
           </p>
           <p class="chart-desc-warn">
-            ⓘ 요일별 분포는 스냅샷 시점(목요일 16시) 단일 데이터 편향이 큼 →
-            요일 차원 분석은 의도적으로 생략 (직전 1주일 데이터만 신뢰 가능).
+            ⓘ 단일 스냅샷이라 시각(hour)·요일 분포 모두 스냅샷 시점 편향이 큼 →
+            실제 시간대 수요 패턴은 이 데이터로 알 수 없다. 여러 날 스냅샷이 쌓이면
+            (Phase 11 시계열) 진짜 시간대 분석이 가능해진다.
           </p>
         </div>
         <div class="chart-wrap">

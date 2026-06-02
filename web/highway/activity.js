@@ -292,13 +292,13 @@ function renderInsights(kpi, hourDist, turnover, highwayAct, dormantBuckets) {
     body: `${fmtInt(kpi.active_7d)}대가 최근 7일 내 충전. 고속도로 충전 인프라는 죽어있지 않다.`,
   });
 
-  // 2) 시간대 피크
+  // 2) 마지막 충전 시각이 몰린 시간대 (수요 빈도 아님 — 단일 스냅샷 편향)
   const peakHour = hourDist.reduce((a, b) => (b.cnt > a.cnt ? b : a));
   insights.push({
     color: "default",
     headline: peakHour.hour + "시",
-    title: "가장 바쁜 시간",
-    body: `${fmtInt(peakHour.cnt)}건 충전. 점심(11~16시) 이 ${fmtPct(hourDist.filter((h) => h.hour >= 11 && h.hour < 16).reduce((s, h) => s + h.cnt, 0) / total, 0)} 차지.`,
+    title: "마지막 충전이 몰린 시각",
+    body: `${fmtInt(peakHour.cnt)}대가 이 시각에 마지막 충전 시작. 단일 스냅샷이라 실제 시간대 수요가 아니라 스냅샷 직전 패턴일 뿐.`,
   });
 
   // 3) 회전율 — 초급속 vs AC
@@ -364,7 +364,7 @@ function renderHour(rows) {
     data: {
       labels: filled.map((r) => r.hour + "시"),
       datasets: [{
-        label: "충전 발생 건수",
+        label: "마지막 충전 시작 건수",
         data: filled.map((r) => r.cnt),
         backgroundColor: filled.map((r) => {
           if (r.hour >= 11 && r.hour < 16) return C.primary;

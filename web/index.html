@@ -120,9 +120,10 @@
       <div class="chart-grid">
         <section class="chart-card" id="card-density" hidden>
           <div class="chart-header">
-            <h3>시군구별 충전기 밀도 top 10</h3>
+            <h3>충전기 수 많은 시군구 top 10</h3>
             <p class="chart-desc">
-              충전기 수 + 운영자 다양성 + 급속(DC) 비율. tooltip 참고.
+              충전기 <strong>절대 수</strong> 기준 (인구·면적 대비 밀도 아님 — 상권·인구
+              많은 곳이 상위). 운영자 다양성 + 급속(DC) 비율은 tooltip 참고.
             </p>
           </div>
           <div class="chart-wrap">
@@ -178,7 +179,9 @@
           <div class="chart-header">
             <h3>연도별 신규 설치</h3>
             <p class="chart-desc">
-              <code>year</code> 컬럼 기준. 2022~2024 폭증, 2025 이후 감소세.
+              <code>year</code> 컬럼 기준. 2022~2024 폭증. <strong>마지막 연도는
+              스냅샷 시점까지만 집계된 진행중 값</strong>이라 실제보다 낮게 보임 (감소세로
+              해석 금지).
             </p>
           </div>
           <div class="chart-wrap">
