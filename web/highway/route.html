@@ -8,18 +8,13 @@
       name="description"
       content="단일 고속도로 노선의 휴게소·충전기·출력·운영자·인프라 간격을 한 화면에."
     />
-    <link rel="stylesheet" href="../styles.css?v=4" />
+    <link rel="stylesheet" href="../styles.css?v=5" />
   </head>
   <body>
     <header>
       <div class="header-inner">
         <div class="header-row">
           <div>
-            <nav class="breadcrumb">
-              <a href="../">← 전체</a>
-              <span class="breadcrumb-sep">/</span>
-              <a href="./">고속도로</a>
-            </nav>
             <h1 id="page-title">노선 deep dive</h1>
             <p class="subtitle" id="page-subtitle">
               <code>kind_detail = 'C001'</code> · 단일 노선 인프라 분석
@@ -31,18 +26,27 @@
               </select>
             </div>
           </div>
-          <div class="header-actions">
-            <div class="nav-group">
-              <a href="./" class="nav-link">차트</a>
-              <a href="./map.html" class="nav-link">지도</a>
-              <a href="./operators.html" class="nav-link">운영자</a>
-              <a href="./activity.html" class="nav-link">활성도</a>
-              <a href="./station.html" class="nav-link">휴게소</a>
-              <a href="./compare.html" class="nav-link">비교</a>
-            </div>
-            <div class="badge highway" id="header-badge" hidden>
-              <span class="badge-dot"></span>
-              <span id="header-snapshot">…</span>
+                    <div class="header-actions">
+            <nav class="view-nav" aria-label="분석 뷰 전환">
+              <a href="../" class="view-tab">전체</a>
+              <a href="../trends.html" class="view-tab">시계열 추세</a>
+              <a href="./" class="view-tab is-active" aria-current="page">고속도로 휴게소</a>
+            </nav>
+            <nav class="sub-nav" aria-label="고속도로 분석 뷰">
+              <a href="./" class="sub-tab">차트</a>
+              <a href="./map.html" class="sub-tab">지도</a>
+              <a href="./operators.html" class="sub-tab">운영자</a>
+              <a href="./activity.html" class="sub-tab">활성도</a>
+              <a href="./route.html" class="sub-tab is-active" aria-current="page">노선</a>
+              <a href="./station.html" class="sub-tab">휴게소</a>
+              <a href="./compare.html" class="sub-tab">비교</a>
+            </nav>
+            <div class="header-util">
+              <a href="../docs/" class="nav-link nav-link-muted">문서</a>
+              <div class="badge highway" id="header-badge" hidden>
+                <span class="badge-dot"></span>
+                <span id="header-snapshot">…</span>
+              </div>
             </div>
           </div>
         </div>
@@ -208,7 +212,7 @@
       </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js?v=4"></script>
-    <script type="module" src="./route.js?v=4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js?v=5"></script>
+    <script type="module" src="./route.js?v=5"></script>
   </body>
 </html>

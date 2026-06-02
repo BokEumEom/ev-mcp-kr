@@ -225,6 +225,39 @@ h1 {
   border-color: var(--border);
   color: var(--text-dim);
 }
+
+/* 고속도로 2차 서브탭 — 전체 표시 + 현재 활성 */
+.sub-nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.sub-tab {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  font-size: 13px;
+  color: var(--text-dim);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+.sub-tab:hover {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+  text-decoration: none;
+}
+.sub-tab.is-active {
+  background: var(--accent-bg);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 600;
+}
 @media (max-width: 720px) {
   .header-actions {
     width: 100%;
@@ -240,6 +273,10 @@ h1 {
     font-size: 12px;
   }
   .header-util {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .sub-nav {
     width: 100%;
     justify-content: flex-start;
   }
