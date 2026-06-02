@@ -21,6 +21,7 @@ async function fetchT(url, ms = 45000) {
 
 // 프로젝트 루트 기준 절대 경로 (루트에서 python -m http.server 실행 전제)
 const MANIFEST_URL = "/scratch/web_snapshots/manifest.json";
+const SUMMARY_URL = "/scratch/web_snapshots/trends_summary.json";
 const SNAPSHOT_BASE = "/scratch/web_snapshots";
 
 const DOWNTIME_CODES = ["1", "4", "5"];
@@ -99,19 +100,39 @@ async function loadManifest() {
   return res.json();
 }
 
-async function registerSnapshots(db, dates) {
-  for (let i = 0; i < dates.length; i++) {
-    const d = dates[i];
-    setStatus(`충전소 데이터 불러오는 중… (${i + 1}/${dates.length})`);
+async function loadSummary() {
+  try {
+    const res = await fetchT(SUMMARY_URL);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null; // 요약 없으면 폴백(전체 로드)
+  }
+}
+
+// 기간 diff 전용 — DuckDB + 필요한 스냅샷만 지연 로드 (전체 135MB 회피)
+let _db = null;
+let _conn = null;
+const _registered = new Set();
+async function ensureConn() {
+  if (_conn) return _conn;
+  _db = await initDuckDB();
+  _conn = await _db.connect();
+  return _conn;
+}
+async function ensureDates(dates) {
+  const conn = await ensureConn();
+  for (const d of dates) {
+    if (_registered.has(d)) continue;
     const res = await fetchT(`${SNAPSHOT_BASE}/chargers_${d}.parquet`);
     if (!res.ok) throw new Error(`스냅샷 fetch 실패: ${d} (${res.status})`);
     const buf = new Uint8Array(await res.arrayBuffer());
-    await db.registerFileBuffer(`s_${d}.parquet`, buf);
+    await _db.registerFileBuffer(`s_${d}.parquet`, buf);
+    _registered.add(d);
   }
-  const conn = await db.connect();
-  const fileList = dates.map((d) => `'s_${d}.parquet'`).join(", ");
+  const fileList = [..._registered].map((d) => `'s_${d}.parquet'`).join(", ");
   await conn.query(
-    `CREATE VIEW v_all AS SELECT * FROM read_parquet([${fileList}])`,
+    `CREATE OR REPLACE VIEW v_all AS SELECT * FROM read_parquet([${fileList}])`,
   );
   return conn;
 }
@@ -280,21 +301,30 @@ function diffCard(label, value, color) {
   return card;
 }
 
-async function renderDiff(conn, from, to) {
+async function lazyDiff(from, to) {
   const grid = $("diff-cards");
   grid.textContent = "";
   if (from === to) {
     grid.append(diffCard("안내", "서로 다른 두 날짜를 선택하세요", C.textDim));
     return;
   }
-  const [r] = await runQuery(conn, qDiff(from, to));
-  const net = r.appeared - r.disappeared;
-  grid.append(
-    diffCard("신규 등장", fmtSigned(r.appeared), C.primary),
-    diffCard("사라짐", fmtSigned(-r.disappeared), C.danger),
-    diffCard("상태 변경", fmtInt(r.stat_changed), C.info),
-    diffCard("순변화", fmtSigned(net), net >= 0 ? C.primary : C.danger),
-  );
+  grid.append(diffCard("계산 중…", "기간 변화 불러오는 중", C.textDim));
+  try {
+    const conn = await ensureDates([from, to]);
+    const [r] = await runQuery(conn, qDiff(from, to));
+    const net = r.appeared - r.disappeared;
+    grid.textContent = "";
+    grid.append(
+      diffCard("신규 등장", fmtSigned(r.appeared), C.primary),
+      diffCard("사라짐", fmtSigned(-r.disappeared), C.danger),
+      diffCard("상태 변경", fmtInt(r.stat_changed), C.info),
+      diffCard("순변화", fmtSigned(net), net >= 0 ? C.primary : C.danger),
+    );
+  } catch (e) {
+    grid.textContent = "";
+    grid.append(diffCard("오류", "기간 변화 계산 실패", C.danger));
+    console.error(e);
+  }
 }
 
 function fillDateSelects(dates, onChange) {
@@ -349,29 +379,40 @@ async function main() {
         " 실제 스냅샷이 며칠 쌓이면 같은 페이지가 진짜 데이터로 동작합니다.";
     }
 
-    const db = await initDuckDB();
-    const conn = await registerSnapshots(db, dates);
-
-    setStatus("추세 계산 중…");
-    const [trend, health] = await Promise.all([
-      runQuery(conn, Q_TREND),
-      runQuery(conn, Q_HEALTH),
-    ]);
-
     $("snapshot-date").textContent = `${dates[0]} ~ ${dates[dates.length - 1]}`;
     $("row-count").textContent = `${dates.length} 관측`;
     $("header-snapshot").textContent = `${dates.length} 스냅샷`;
 
+    // 추세·가동률: per-date 요약(작음)으로 즉시 렌더
+    const summary = await loadSummary();
+    if (summary?.trend?.length && summary?.health?.length) {
+      renderKpi(summary.trend, summary.health);
+      renderTrend(summary.trend);
+      renderHealth(summary.health);
+      fillDateSelects(dates, () =>
+        lazyDiff($("diff-from").value, $("diff-to").value),
+      );
+      reveal();
+      // 기간 변화는 선택된 2개 스냅샷만 백그라운드 지연 로드
+      lazyDiff(dates[0], dates[dates.length - 1]);
+      return;
+    }
+
+    // 폴백(요약 없음): 예전 방식 — 전체 스냅샷 로드
+    setStatus("추세 계산 중…");
+    const conn = await ensureDates(dates);
+    const [trend, health] = await Promise.all([
+      runQuery(conn, Q_TREND),
+      runQuery(conn, Q_HEALTH),
+    ]);
     renderKpi(trend, health);
     renderTrend(trend);
     renderHealth(health);
-
     fillDateSelects(dates, () =>
-      renderDiff(conn, $("diff-from").value, $("diff-to").value),
+      lazyDiff($("diff-from").value, $("diff-to").value),
     );
-    await renderDiff(conn, dates[0], dates[dates.length - 1]);
-
     reveal();
+    await lazyDiff(dates[0], dates[dates.length - 1]);
   } catch (e) {
     showError(e);
   }

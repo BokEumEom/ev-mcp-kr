@@ -111,6 +111,10 @@ def synthesize(snapshot_dir: Path, out_dir: Path) -> list[str]:
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    # 시계열 페이지가 즉시 로드하도록 per-date 집계 요약도 함께 생성
+    from build_trends_summary import build as build_trends_summary
+
+    build_trends_summary(out_dir)
     return dates
 
 
