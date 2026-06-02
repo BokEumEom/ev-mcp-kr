@@ -215,9 +215,11 @@ const Q_CHGER_TYPE = `
 
 const Q_OUTPUT = `
   WITH typed AS (
+    -- output NULL 도 포함해야 '미상' 버킷이 실제 미상 수를 반영한다.
+    -- (NULL 을 미리 제외하면 미상이 과소 집계됨)
     SELECT TRY_CAST(output AS DOUBLE) AS kw
     FROM 'chargers.parquet'
-    WHERE del_yn = 'N' AND output IS NOT NULL
+    WHERE del_yn = 'N'
   )
   SELECT bucket, cnt FROM (
     SELECT

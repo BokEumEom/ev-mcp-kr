@@ -553,9 +553,10 @@ function renderSpacing(distances) {
     { label: "61~100 km", min: 60, max: 100 },
     { label: "100+ km", min: 100, max: Infinity },
   ];
-  const counts = buckets.map((b) =>
-    distances.filter((d) => d.km > b.min && d.km <= b.max).length,
-  );
+  // 첫 버킷(min=0)은 >= 로 — km=0(양방향 중복 등)이 어디에도 안 들어가는 누락 방지.
+  const inBucket = (d, b) =>
+    (b.min === 0 ? d.km >= b.min : d.km > b.min) && d.km <= b.max;
+  const counts = buckets.map((b) => distances.filter((d) => inBucket(d, b)).length);
   const colors = buckets.map((b) =>
     b.min >= 60 ? C.danger : b.min >= 40 ? C.warn : C.primary,
   );
@@ -585,7 +586,7 @@ function renderSpacing(distances) {
             afterBody: (ctx) => {
               const b = buckets[ctx[0].dataIndex];
               const ds = distances
-                .filter((d) => d.km > b.min && d.km <= b.max)
+                .filter((d) => inBucket(d, b))
                 .sort((a, b) => b.km - a.km)
                 .slice(0, 3);
               return ds.map(
