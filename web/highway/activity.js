@@ -65,24 +65,28 @@ function makeEl(tag, className, text) {
   return el;
 }
 
-const C = {
-  text: "#18181b",
-  textDim: "#5e6470",
-  grid: "#eceef1",
-  primary: "#5b5bd6",
-  warn: "#d97706",
-  danger: "#dc2626",
-  info: "#0891b2",
-  purple: "#7c3aed",
-  amber: "#ca8a04",
-  lime: "#65a30d",
-  rose: "#e11d48",
-};
+const C = (() => {
+  const s = getComputedStyle(document.documentElement);
+  const v = (n, f) => s.getPropertyValue(n).trim() || f;
+  return {
+    text: v("--text", "#18181b"),
+    textDim: v("--text-dim", "#5e6470"),
+    grid: v("--chart-grid", "#eceef1"),
+    primary: v("--accent", "#5b5bd6"),
+    warn: v("--warn", "#d97706"),
+    danger: v("--danger", "#dc2626"),
+    info: v("--info", "#0891b2"),
+    purple: v("--purple", "#7c3aed"),
+    amber: v("--chart-amber", "#ca8a04"),
+    lime: v("--chart-lime", "#65a30d"),
+    rose: v("--chart-rose", "#e11d48"),
+  };
+})();
 
 Chart.defaults.color = C.textDim;
 Chart.defaults.borderColor = C.grid;
 Chart.defaults.font.family =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", system-ui, sans-serif';
+  '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", system-ui, sans-serif';
 Chart.defaults.plugins.legend.labels.color = C.text;
 
 // ─── DuckDB-WASM ───

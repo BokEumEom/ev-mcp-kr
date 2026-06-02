@@ -54,12 +54,16 @@ function makeEl(tag, className, text) {
 
 // ─── 마커 스타일 매핑 ───
 
-const PALETTE = {
-  fast: "#5b5bd6",   // 200+ kW
-  mid: "#ca8a04",    // 100~200
-  slow: "#0891b2",   // 50~100
-  low: "#8b95a4",    // ≤50
-};
+const PALETTE = (() => {
+  const s = getComputedStyle(document.documentElement);
+  const v = (n, f) => s.getPropertyValue(n).trim() || f;
+  return {
+    fast: v("--kw-fast", "#5b5bd6"),
+    mid: v("--kw-mid", "#ca8a04"),
+    slow: v("--kw-slow", "#0891b2"),
+    low: v("--kw-low", "#8b95a4"),
+  };
+})();
 
 function colorByKw(kw) {
   if (kw == null) return PALETTE.low;
