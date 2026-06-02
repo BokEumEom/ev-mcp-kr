@@ -221,6 +221,8 @@ h1 {
 
 .ranking-table {
   width: 100%;
+  /* keep columns readable on narrow screens; .table-wrap scrolls horizontally */
+  min-width: 680px;
   border-collapse: collapse;
   font-size: 13px;
   font-feature-settings: "tnum";
