@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ev-mcp 시계열 분석 — 충전소 인벤토리 추세</title>
+    <meta
+      name="description"
+      content="날짜별 스냅샷으로 본 충전소 인벤토리·가동률 추세. Phase 11 시계열 데이터."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <div>
+            <h1>충전소 인벤토리 시계열</h1>
+            <p class="subtitle">
+              날짜별 스냅샷 추세 · Phase 11 (snapshot_diff / inventory_trend)
+            </p>
+          </div>
+          <div class="header-actions">
+            <a href="./" class="nav-link">← 메인 대시보드</a>
+            <div class="badge" id="header-badge" hidden>
+              <span class="badge-dot"></span>
+              <span id="header-snapshot">…</span>
+            </div>
+          </div>
+        </div>
+        <div class="meta">
+          <span id="snapshot-date">로딩 중…</span>
+          <span class="dot">·</span>
+          <span id="row-count">—</span>
+          <span class="dot">·</span>
+          <span class="powered">DuckDB-WASM <span id="duckdb-version">…</span></span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- 합성 데이터 경고 배너 -->
+      <section
+        id="demo-banner"
+        class="chart-card"
+        style="border-color: #fbbf24; background: rgba(251, 191, 36, 0.06)"
+        hidden
+      >
+        <p class="chart-desc-warn" id="demo-banner-text" style="margin: 0">⚠️</p>
+      </section>
+
+      <section id="status" class="status">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="status-text">분석 엔진 준비 중…</span>
+      </section>
+
+      <section id="error-panel" class="error-panel" hidden>
+        <h2>오류</h2>
+        <pre id="error-message"></pre>
+      </section>
+
+      <!-- 최신 관측 요약 KPI -->
+      <section class="kpi-grid" id="kpi-grid" hidden>
+        <div class="kpi">
+          <div class="kpi-label">관측 수</div>
+          <div class="kpi-value" id="kpi-obs">—</div>
+          <div class="kpi-sub" id="kpi-range">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">최신 총 충전기</div>
+          <div class="kpi-value" id="kpi-latest-total">—</div>
+          <div class="kpi-sub" id="kpi-latest-delta">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">기간 순증</div>
+          <div class="kpi-value" id="kpi-net">—</div>
+          <div class="kpi-sub" id="kpi-net-sub">처음 → 마지막</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">최신 비가동률</div>
+          <div class="kpi-value" id="kpi-downtime">—</div>
+          <div class="kpi-sub" id="kpi-downtime-trend">—</div>
+        </div>
+      </section>
+
+      <!-- A. 인벤토리 추세 -->
+      <h2 class="section-title" id="trend-title" hidden>인벤토리 추세</h2>
+      <section class="chart-card" id="card-trend" hidden>
+        <div class="chart-header">
+          <h3>관측일별 충전기 수</h3>
+          <p class="chart-desc">
+            총 충전기 / 급속(DC) / 즉시 사용 가능 / 운영자 수의 날짜별 추이.
+            점에 마우스를 올리면 전일 대비 증감.
+          </p>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-trend"></canvas></div>
+      </section>
+
+      <!-- B. 기간 변화 -->
+      <h2 class="section-title" id="diff-title" hidden>기간 변화 (snapshot_diff)</h2>
+      <section class="chart-card" id="card-diff" hidden>
+        <div class="chart-header">
+          <h3>두 관측 사이 충전기 변화</h3>
+          <p class="chart-desc">
+            충전기 고유키(충전소+충전기 ID)로 비교 — 신규 등장 / 사라짐 /
+            상태 변경 건수.
+          </p>
+          <div class="trend-controls" style="margin-top: 12px">
+            <label
+              >비교:
+              <select id="diff-from" class="select"></select>
+              <span style="margin: 0 6px">→</span>
+              <select id="diff-to" class="select"></select>
+            </label>
+          </div>
+        </div>
+        <div class="kpi-grid" id="diff-cards" style="margin-top: 16px"></div>
+      </section>
+
+      <!-- C. 가동률/상태 추세 -->
+      <h2 class="section-title" id="health-title" hidden>가동률 · 상태 추세</h2>
+      <section class="chart-card" id="card-health" hidden>
+        <div class="chart-header">
+          <h3>관측일별 비가동률 · 미연동률</h3>
+          <p class="chart-desc">
+            비가동률(통신이상·운영중지·점검중 = stat 1/4/5) 과
+            미연동률(상태미확인 = stat 9) 의 추이.
+            <strong>단일 스냅샷에선 불가능했던 분석</strong> — 여러 날짜가 있어야 추세가 보인다.
+          </p>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-health"></canvas></div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <span>ev-mcp · Phase 11 시계열</span>
+        <span class="dot">·</span>
+        <span>DuckDB-WASM in-browser</span>
+      </div>
+    </footer>
+
+    <script type="module" src="./trends.js"></script>
+  </body>
+</html>
