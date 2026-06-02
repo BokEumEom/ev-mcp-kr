@@ -184,6 +184,67 @@ h1 {
   justify-content: flex-end;
 }
 
+/* 메인 1차 뷰 전환 — 세그먼트 컨트롤 (전체 / 시계열 / 고속도로) */
+.view-nav {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.view-tab {
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.view-tab:hover {
+  color: var(--text);
+  background: var(--bg-card);
+  text-decoration: none;
+}
+.view-tab.is-active {
+  background: var(--bg-card);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.header-util {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-link.nav-link-muted {
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+@media (max-width: 720px) {
+  .header-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+  .view-nav {
+    width: 100%;
+  }
+  .view-tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+  .header-util {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
 /* route picker — 노선 선택 드롭다운 (헤더) */
 .route-picker {
   display: flex;
