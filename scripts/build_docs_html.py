@@ -23,6 +23,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 WEB_DOCS = PROJECT_ROOT / "web" / "docs"
 
+# 자산 캐시 버스팅 버전 — app 페이지(?v=N)와 함께 올린다.
+ASSET_VERSION = "11"
+
 
 @dataclass(frozen=True)
 class DocEntry:
@@ -71,6 +74,7 @@ SOURCES: list[tuple[str, str, str]] = [
     ("docs/PHASE7.md", "phase7", "Phase 보고서"),
     ("docs/PHASE9.md", "phase9", "Phase 보고서"),
     ("docs/PHASE10.md", "phase10", "Phase 보고서"),
+    ("docs/PHASE11.md", "phase11", "Phase 보고서"),
     # 운영 / 정책
     ("docs/PRIVACY.md", "privacy", "운영 · 정책"),
     ("docs/SUPPORT.md", "support", "운영 · 정책"),
@@ -83,6 +87,7 @@ SOURCES: list[tuple[str, str, str]] = [
     ),
     # web 자체 문서
     ("web/README.md", "web-readme", "web 대시보드"),
+    ("DESIGN.md", "design", "web 대시보드"),
     # workers
     ("workers/README.md", "workers-readme", "Cloudflare Workers"),
     ("workers/DEPLOY.md", "workers-deploy", "Cloudflare Workers"),
@@ -131,8 +136,8 @@ def render_doc_page(entry: DocEntry, project_title: str) -> str:
 
     # web/docs/<sub>.html 에서 _docs.css 와 _shared.js 까지 상대 경로.
     rel_root = relpath_to_web_docs_root(entry.out_path)
-    css_href = f"{rel_root}_docs.css"
-    js_src = f"{rel_root}_shared.js"
+    css_href = f"{rel_root}_docs.css?v={ASSET_VERSION}"
+    js_src = f"{rel_root}_shared.js?v={ASSET_VERSION}"
     index_href = f"{rel_root}index.html"
     dashboard_href = f"{rel_root}../index.html"
 
@@ -252,7 +257,7 @@ def render_index_page(entries: list[DocEntry], project_title: str) -> str:
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>문서 — {html.escape(project_title)}</title>
-    <link rel="stylesheet" href="./_docs.css" />
+    <link rel="stylesheet" href="./_docs.css?v={ASSET_VERSION}" />
   </head>
   <body>
     <header class="doc-header">
