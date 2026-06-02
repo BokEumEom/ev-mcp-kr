@@ -123,25 +123,12 @@ const Q_RANKING = `
 `;
 
 const Q_HEATMAP = `
-  WITH base AS (
-    SELECT
-      busi_id,
-      ANY_VALUE(busi_nm) busi_nm,
-      regexp_extract(addr, '([가-힣]+고속도로)', 1) AS highway
+  WITH cells AS (
+    SELECT busi_id, ANY_VALUE(busi_nm) busi_nm,
+           regexp_extract(addr, '([가-힣]+고속도로)', 1) AS highway,
+           COUNT(*) cnt
     FROM 'chargers.parquet'
-    WHERE ${HW_FILTER}
-    GROUP BY busi_id, addr
-  ),
-  cells AS (
-    SELECT busi_id, ANY_VALUE(busi_nm) busi_nm, highway, COUNT(*) cnt
-    FROM (
-      SELECT busi_id, ANY_VALUE(busi_nm) busi_nm,
-             regexp_extract(addr, '([가-힣]+고속도로)', 1) highway
-      FROM 'chargers.parquet'
-      WHERE ${HW_FILTER}
-      GROUP BY busi_id, addr, stat_id, chger_id
-    )
-    WHERE highway != ''
+    WHERE ${HW_FILTER} AND regexp_extract(addr, '([가-힣]+고속도로)', 1) != ''
     GROUP BY busi_id, highway
   ),
   top_ops AS (
@@ -156,6 +143,15 @@ const Q_HEATMAP = `
   FROM cells c
   WHERE c.busi_id IN (SELECT busi_id FROM top_ops)
     AND c.highway IN (SELECT highway FROM top_hws)
+`;
+
+// 1휴게소-1운영자 독점 검증 — distinct 휴게소 수 vs (휴게소,운영자) 쌍 수.
+// 둘이 같으면 모든 휴게소가 단일 운영자. pairs > total 이면 일부 휴게소가 복수 운영자.
+const Q_MONOPOLY = `
+  WITH sb AS (
+    SELECT DISTINCT stat_id, busi_id FROM 'chargers.parquet' WHERE ${HW_FILTER}
+  )
+  SELECT COUNT(DISTINCT stat_id) AS total_stations, COUNT(*) AS pairs FROM sb
 `;
 
 const Q_YEAR_BY_OP = `
@@ -190,23 +186,25 @@ const shortHighway = (h) => (h || "").replace(/고속도로$/, "");
 
 // ─── 인사이트 ───
 
-function renderInsights(ranking, heatmap, year) {
+function renderInsights(ranking, heatmap, year, monopoly) {
   const grid = $("insight-grid");
   grid.textContent = "";
 
   const totalChargers = ranking.reduce((a, r) => a + r.chargers, 0);
-  const totalStations = ranking.reduce((a, r) => a + r.stations, 0);
 
-  // 1) 1휴게소-1운영자 독점
-  // 데이터 검증: stations 합 == 622 인가?
-  const isMonopoly = totalStations === 622;
-  // (heatmap 데이터로 추가 검증 불가하니 직접 사실 인용)
+  // 1) 1휴게소-1운영자 독점 — distinct 휴게소 수 vs (휴게소,운영자) 쌍 수로 실제 검증.
+  const totalStations = Number(monopoly[0].total_stations);
+  const pairs = Number(monopoly[0].pairs);
+  const isMonopoly = pairs === totalStations;
+  const multiPairs = pairs - totalStations;
   const insights = [];
   insights.push({
-    color: "info",
-    headline: "100%",
-    title: "1휴게소-1운영자 독점",
-    body: `622곳 휴게소 모두 단일 운영자. 일반 시내 충전소(멀티 운영자) 와 결정적 구조 차이. 시장 진입 = 휴게소 권리 획득.`,
+    color: isMonopoly ? "info" : "warn",
+    headline: isMonopoly ? "100%" : fmtPct(1 - multiPairs / totalStations, 0),
+    title: isMonopoly ? "1휴게소-1운영자 독점" : "대부분 단일 운영자",
+    body: isMonopoly
+      ? `${totalStations}곳 휴게소 모두 단일 운영자 (휴게소-운영자 쌍 ${pairs}개 = 휴게소 수). 시내 멀티 운영자 충전소와 결정적 구조 차이.`
+      : `${totalStations}곳 중 일부는 복수 운영자 — 휴게소-운영자 쌍이 ${pairs}개로 휴게소보다 ${multiPairs}개 많음.`,
   });
 
   // 2) 최상위 운영자 점유
@@ -526,21 +524,23 @@ async function main() {
     const conn = await db.connect();
 
     setStatus("운영자 분석 중…");
-    const [codes, ranking, heatmap, year] = await Promise.all([
+    const [codes, ranking, heatmap, year, monopoly] = await Promise.all([
       loadCodes(),
       runQuery(conn, Q_RANKING),
       runQuery(conn, Q_HEATMAP),
       runQuery(conn, Q_YEAR_BY_OP),
+      runQuery(conn, Q_MONOPOLY),
     ]);
 
-    // 헤더 메타
+    // 헤더 메타 — 휴게소 수는 distinct 집계(monopoly)로. ranking.stations 합산은
+    // 멀티 운영자 휴게소를 중복 카운트하므로 쓰지 않는다.
     const totalChargers = ranking.reduce((a, r) => a + r.chargers, 0);
-    const totalStations = ranking.reduce((a, r) => a + r.stations, 0);
+    const totalStations = Number(monopoly[0].total_stations);
     $("snapshot-date").textContent = `${totalChargers} 충전기 / ${totalStations} 휴게소`;
     $("header-snapshot").textContent = `운영자 ${ranking.length}곳`;
     $("row-count").textContent = fmtInt(totalChargers) + " rows";
 
-    renderInsights(ranking, heatmap, year);
+    renderInsights(ranking, heatmap, year, monopoly);
     renderRanking(ranking, codes);
     renderHeatmap(heatmap, codes);
     renderYear(year, codes);
