@@ -2,6 +2,21 @@
 
 import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm";
 
+// 로딩 견고화 — 타임아웃 + 캐시 무력화 (스피너 무한 회전 방지)
+async function fetchT(url, ms = 45000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await window.fetch(url, { signal: ctrl.signal, cache: "no-cache" });
+  } catch (e) {
+    if (e.name === "AbortError")
+      throw new Error(`로딩 시간 초과 (${Math.round(ms / 1000)}초): ${url}\n네트워크 확인 후 새로고침하세요.`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const PARQUET_URL = "/scratch/chargers_snapshot.parquet";
 const BUSI_URL = "/src/ev_mcp/codes/busi_id.json";
 const DC_CODES = ["01", "03", "04", "05", "06", "08", "09", "10"];
@@ -35,10 +50,10 @@ function makeEl(tag, className, text) {
 }
 
 const C = {
-  text: "#ecf0f4", textDim: "#8b96a4", grid: "#232c38",
-  primary: "#6ee7b7", warn: "#fbbf24", danger: "#f87171",
-  info: "#7dd3fc", purple: "#c4b5fd", amber: "#fcd34d",
-  lime: "#bef264", rose: "#fda4af",
+  text: "#18181b", textDim: "#5e6470", grid: "#eceef1",
+  primary: "#5b5bd6", warn: "#d97706", danger: "#dc2626",
+  info: "#0891b2", purple: "#7c3aed", amber: "#ca8a04",
+  lime: "#65a30d", rose: "#e11d48",
 };
 Chart.defaults.color = C.textDim;
 Chart.defaults.borderColor = C.grid;
@@ -59,7 +74,7 @@ async function initDuckDB() {
   URL.revokeObjectURL(workerUrl);
 
   setStatus("충전소 데이터 불러오는 중…");
-  const res = await fetch(PARQUET_URL);
+  const res = await fetchT(PARQUET_URL);
   if (!res.ok) throw new Error(`Parquet fetch 실패: ${res.status}`);
   const buf = new Uint8Array(await res.arrayBuffer());
   await db.registerFileBuffer("chargers.parquet", buf);

@@ -4,6 +4,21 @@
 import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm";
 import "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js";
 
+// 로딩 견고화 — 타임아웃 + 캐시 무력화 (스피너 무한 회전 방지)
+async function fetchT(url, ms = 45000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await window.fetch(url, { signal: ctrl.signal, cache: "no-cache" });
+  } catch (e) {
+    if (e.name === "AbortError")
+      throw new Error(`로딩 시간 초과 (${Math.round(ms / 1000)}초): ${url}\n네트워크 확인 후 새로고침하세요.`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // 프로젝트 루트 기준 절대 경로 (루트에서 python -m http.server 실행 전제)
 const MANIFEST_URL = "/scratch/web_snapshots/manifest.json";
 const SNAPSHOT_BASE = "/scratch/web_snapshots";
@@ -34,14 +49,14 @@ function makeEl(tag, className, text) {
 }
 
 const C = {
-  text: "#ecf0f4",
-  textDim: "#8b96a4",
-  grid: "#232c38",
-  primary: "#6ee7b7",
-  warn: "#fbbf24",
-  danger: "#f87171",
-  info: "#7dd3fc",
-  purple: "#c4b5fd",
+  text: "#18181b",
+  textDim: "#5e6470",
+  grid: "#eceef1",
+  primary: "#5b5bd6",
+  warn: "#d97706",
+  danger: "#dc2626",
+  info: "#0891b2",
+  purple: "#7c3aed",
 };
 Chart.defaults.color = C.textDim;
 Chart.defaults.borderColor = C.grid;
@@ -66,7 +81,7 @@ async function initDuckDB() {
 }
 
 async function loadManifest() {
-  const res = await fetch(MANIFEST_URL);
+  const res = await fetchT(MANIFEST_URL);
   if (!res.ok) {
     throw new Error(
       `manifest fetch 실패: ${res.status} ${MANIFEST_URL}\n` +
@@ -81,7 +96,7 @@ async function registerSnapshots(db, dates) {
   for (let i = 0; i < dates.length; i++) {
     const d = dates[i];
     setStatus(`충전소 데이터 불러오는 중… (${i + 1}/${dates.length})`);
-    const res = await fetch(`${SNAPSHOT_BASE}/chargers_${d}.parquet`);
+    const res = await fetchT(`${SNAPSHOT_BASE}/chargers_${d}.parquet`);
     if (!res.ok) throw new Error(`스냅샷 fetch 실패: ${d} (${res.status})`);
     const buf = new Uint8Array(await res.arrayBuffer());
     await db.registerFileBuffer(`s_${d}.parquet`, buf);

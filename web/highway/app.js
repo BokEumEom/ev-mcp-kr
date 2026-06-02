@@ -4,6 +4,21 @@
 import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm";
 import "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js";
 
+// 로딩 견고화 — 타임아웃 + 캐시 무력화 (스피너 무한 회전 방지)
+async function fetchT(url, ms = 45000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await window.fetch(url, { signal: ctrl.signal, cache: "no-cache" });
+  } catch (e) {
+    if (e.name === "AbortError")
+      throw new Error(`로딩 시간 초과 (${Math.round(ms / 1000)}초): ${url}\n네트워크 확인 후 새로고침하세요.`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const PARQUET_URL = "/scratch/chargers_snapshot.parquet";
 const CODE_URLS = {
   sido: "/src/ev_mcp/codes/sido.json",
@@ -60,17 +75,17 @@ const shortSido = (s) =>
   (s || "").replace(/특별자치(도|시)$/, "").replace(/광역시$/, "");
 
 const C = {
-  text: "#ecf0f4",
-  textDim: "#8b96a4",
-  grid: "#232c38",
-  primary: "#6ee7b7",
-  warn: "#fbbf24",
-  danger: "#f87171",
-  info: "#7dd3fc",
-  purple: "#c4b5fd",
-  amber: "#fcd34d",
-  lime: "#bef264",
-  rose: "#fda4af",
+  text: "#18181b",
+  textDim: "#5e6470",
+  grid: "#eceef1",
+  primary: "#5b5bd6",
+  warn: "#d97706",
+  danger: "#dc2626",
+  info: "#0891b2",
+  purple: "#7c3aed",
+  amber: "#ca8a04",
+  lime: "#65a30d",
+  rose: "#e11d48",
 };
 
 Chart.defaults.color = C.textDim;
@@ -97,7 +112,7 @@ async function initDuckDB() {
   $("duckdb-version").textContent = "v" + (await db.getVersion());
 
   setStatus(`충전소 데이터 불러오는 중…`);
-  const res = await fetch(PARQUET_URL);
+  const res = await fetchT(PARQUET_URL);
   if (!res.ok) {
     throw new Error(
       `Parquet fetch 실패: ${res.status} ${res.statusText}\nURL: ${PARQUET_URL}`,
@@ -222,7 +237,7 @@ async function runQuery(conn, sql) {
 async function loadCodes() {
   const entries = await Promise.all(
     Object.entries(CODE_URLS).map(async ([name, url]) => {
-      const r = await fetch(url);
+      const r = await fetchT(url);
       if (!r.ok) throw new Error(`코드 테이블 fetch 실패: ${url}`);
       return [name, await r.json()];
     }),

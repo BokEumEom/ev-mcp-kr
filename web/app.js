@@ -4,6 +4,21 @@
 import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm";
 import "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js";
 
+// 로딩 견고화 — 타임아웃 + 캐시 무력화 (스피너 무한 회전 방지)
+async function fetchT(url, ms = 45000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await window.fetch(url, { signal: ctrl.signal, cache: "no-cache" });
+  } catch (e) {
+    if (e.name === "AbortError")
+      throw new Error(`로딩 시간 초과 (${Math.round(ms / 1000)}초): ${url}\n네트워크 확인 후 새로고침하세요.`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // 설정 — 프로젝트 루트 기준 절대 경로. 루트에서 `python -m http.server` 실행
 // ──────────────────────────────────────────────────────────────────────────
@@ -83,17 +98,17 @@ function makeEl(tag, className, text) {
 
 // Chart.js dark-theme defaults
 const C = {
-  text: "#ecf0f4",
-  textDim: "#8b96a4",
-  grid: "#232c38",
-  primary: "#6ee7b7",
-  warn: "#fbbf24",
-  danger: "#f87171",
-  info: "#7dd3fc",
-  purple: "#c4b5fd",
-  rose: "#fda4af",
-  amber: "#fcd34d",
-  lime: "#bef264",
+  text: "#18181b",
+  textDim: "#5e6470",
+  grid: "#eceef1",
+  primary: "#5b5bd6",
+  warn: "#d97706",
+  danger: "#dc2626",
+  info: "#0891b2",
+  purple: "#7c3aed",
+  rose: "#e11d48",
+  amber: "#ca8a04",
+  lime: "#65a30d",
 };
 
 Chart.defaults.color = C.textDim;
@@ -126,7 +141,7 @@ async function initDuckDB() {
   $("duckdb-version").textContent = "v" + (await db.getVersion());
 
   setStatus(`충전소 데이터 불러오는 중…`);
-  const res = await fetch(PARQUET_URL);
+  const res = await fetchT(PARQUET_URL);
   if (!res.ok) {
     throw new Error(
       `Parquet fetch 실패: ${res.status} ${res.statusText}\n` +
@@ -283,7 +298,7 @@ async function runQuery(conn, sql) {
 async function loadCodes() {
   const entries = await Promise.all(
     Object.entries(CODE_URLS).map(async ([name, url]) => {
-      const r = await fetch(url);
+      const r = await fetchT(url);
       if (!r.ok) throw new Error(`코드 테이블 fetch 실패: ${url} ${r.status}`);
       return [name, await r.json()];
     }),

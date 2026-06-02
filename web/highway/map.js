@@ -2,6 +2,21 @@
 // 622곳 휴게소 마커. 색상=평균 출력, 크기=충전기 수. 노선 필터 + 클릭 popup.
 
 import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm";
+
+// 로딩 견고화 — 타임아웃 + 캐시 무력화 (스피너 무한 회전 방지)
+async function fetchT(url, ms = 45000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await window.fetch(url, { signal: ctrl.signal, cache: "no-cache" });
+  } catch (e) {
+    if (e.name === "AbortError")
+      throw new Error(`로딩 시간 초과 (${Math.round(ms / 1000)}초): ${url}\n네트워크 확인 후 새로고침하세요.`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 // Leaflet 은 UMD 로 index.html 에서 미리 로드됨 → window.L 사용
 
 const PARQUET_URL = "/scratch/chargers_snapshot.parquet";
@@ -40,9 +55,9 @@ function makeEl(tag, className, text) {
 // ─── 마커 스타일 매핑 ───
 
 const PALETTE = {
-  fast: "#6ee7b7",   // 200+ kW
-  mid: "#fcd34d",    // 100~200
-  slow: "#7dd3fc",   // 50~100
+  fast: "#5b5bd6",   // 200+ kW
+  mid: "#ca8a04",    // 100~200
+  slow: "#0891b2",   // 50~100
   low: "#8b95a4",    // ≤50
 };
 
@@ -77,7 +92,7 @@ async function initDuckDB() {
   $("duckdb-version").textContent = "v" + (await db.getVersion());
 
   setStatus(`충전소 데이터 불러오는 중…`);
-  const res = await fetch(PARQUET_URL);
+  const res = await fetchT(PARQUET_URL);
   if (!res.ok) throw new Error(`Parquet fetch 실패: ${res.status} ${PARQUET_URL}`);
   const buf = new Uint8Array(await res.arrayBuffer());
   setStatus(`충전소 데이터 불러오는 중… (${(buf.byteLength / 1024 / 1024).toFixed(1)}MB)`);
