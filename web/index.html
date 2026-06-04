@@ -18,7 +18,7 @@
         } catch (e) {}
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=11" />
+    <link rel="stylesheet" href="./styles.css?v=12" />
   </head>
   <body>
     <header>
@@ -66,6 +66,8 @@
         <span class="spinner" aria-hidden="true"></span>
         <span id="status-text">DuckDB-WASM 초기화 중…</span>
       </section>
+
+      <div id="region-filter" class="region-filter" hidden></div>
 
       <!-- ───────── KPI 8개 ───────── -->
       <section class="kpi-grid" id="kpi-grid" hidden>
@@ -156,6 +158,7 @@
             <h3>광역시도별 급속(DC) 비율</h3>
             <p class="chart-desc">
               비도시권(경북·전북·강원) 이 도시(서울·부산) 대비 DC 비율 2~3배.
+              <strong>막대 클릭 → 그 지역으로 대시보드 전체 필터.</strong>
             </p>
           </div>
           <div class="chart-wrap">
@@ -251,7 +254,7 @@
       </div>
     </footer>
 
-    <script type="module" src="./app.js?v=11"></script>
-    <script src="./theme.js?v=11"></script>
+    <script type="module" src="./app.js?v=12"></script>
+    <script src="./theme.js?v=12"></script>
   </body>
 </html>

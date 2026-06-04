@@ -24,7 +24,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 WEB_DOCS = PROJECT_ROOT / "web" / "docs"
 
 # 자산 캐시 버스팅 버전 — app 페이지(?v=N)와 함께 올린다.
-ASSET_VERSION = "11"
+ASSET_VERSION = "12"
 
 
 @dataclass(frozen=True)

@@ -59,7 +59,7 @@ function revealAll() {
   $("status").hidden = true;
   for (const id of [
     "kpi-grid",
-    "insights",
+    // "insights" 는 applyFilter 가 제어 (지역 필터 시 숨김) — 여기서 안 건드림
     "charts-title",
     "card-operators",
     "region-title",
@@ -296,6 +296,100 @@ async function runQuery(conn, sql) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// 차트 인스턴스 관리 + 지역(시도) 크로스필터
+// ──────────────────────────────────────────────────────────────────────────
+
+const _charts = {};
+function mountChart(canvasId, config) {
+  // 재렌더 시 이전 인스턴스를 파기해야 누수·겹침이 없다.
+  if (_charts[canvasId]) _charts[canvasId].destroy();
+  _charts[canvasId] = new Chart($(canvasId).getContext("2d"), config);
+  return _charts[canvasId];
+}
+
+let _conn = null;
+let _codes = null;
+let _sido = null; // 활성 지역 필터 (zcode) 또는 null = 전국
+let _national = null; // 인사이트·셀렉터용 전국 결과 캐시
+
+// 데이터가 이미 브라우저(DuckDB-WASM)에 있으므로 필터 재쿼리는 즉각·무료.
+function sidoSql(sql) {
+  return _sido
+    ? sql.replace(
+        "WHERE del_yn = 'N'",
+        `WHERE del_yn = 'N' AND zcode = '${_sido}'`,
+      )
+    : sql;
+}
+
+function renderRegionChip() {
+  const host = $("region-filter");
+  host.textContent = "";
+  if (!_sido) {
+    host.hidden = true;
+    return;
+  }
+  host.hidden = false;
+  const name = (_codes && _codes.sido[_sido]) || _sido;
+  const chip = makeEl("span", "region-chip");
+  chip.append(makeEl("span", null, `지역 필터: ${name}`));
+  const x = makeEl("button", "region-chip-x", "✕");
+  x.type = "button";
+  x.setAttribute("aria-label", "지역 필터 해제 (전국 보기)");
+  x.addEventListener("click", () => applyFilter(null));
+  chip.append(x);
+  host.append(chip);
+}
+
+async function applyFilter(sido) {
+  // 알 수 없는 시도 코드는 무시 (URL 변조 방어)
+  if (sido && _national && !_national.sidoDc.some((r) => r.zcode === sido)) {
+    sido = null;
+  }
+  _sido = sido || null;
+
+  const url = new URL(location.href);
+  if (_sido) url.searchParams.set("sido", _sido);
+  else url.searchParams.delete("sido");
+  history.replaceState(null, "", url);
+  renderRegionChip();
+
+  const [[kpi], operators, density, chgerType, output, year, kind] =
+    await Promise.all([
+      runQuery(_conn, sidoSql(Q_KPI)),
+      runQuery(_conn, sidoSql(Q_OPERATORS)),
+      runQuery(_conn, sidoSql(Q_DENSITY)),
+      runQuery(_conn, sidoSql(Q_CHGER_TYPE)),
+      runQuery(_conn, sidoSql(Q_OUTPUT)),
+      runQuery(_conn, sidoSql(Q_YEAR)),
+      runQuery(_conn, sidoSql(Q_KIND)),
+    ]);
+
+  renderKpi(kpi);
+  renderOperators(operators, _codes);
+  renderDensity(density, _codes);
+  renderChgerType(chgerType, _codes);
+  renderOutput(output);
+  renderYear(year);
+  renderKind(kind, _codes);
+
+  // 인사이트 카드는 전국 기준 내러티브 — 지역 필터 시 숨긴다.
+  const insights = $("insights");
+  if (_sido) {
+    insights.hidden = true;
+  } else {
+    insights.hidden = false;
+    renderInsights({
+      kpi,
+      chgerType,
+      year,
+      sidoDc: _national.sidoDc,
+      codes: _codes,
+    });
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // 코드 → 한국어 라벨
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -435,7 +529,7 @@ function renderOperators(rows, codes) {
     const label = codes.busi[r.busi_id] || r.busi_nm || r.busi_id;
     return label.length > 14 ? label.slice(0, 13) + "…" : label;
   });
-  new Chart($("chart-operators").getContext("2d"), {
+  mountChart("chart-operators", {
     type: "bar",
     data: {
       labels,
@@ -486,7 +580,7 @@ function renderDensity(rows, codes) {
     const gu = codes.sigungu[r.zscode] || r.zscode;
     return `${shortSido(sido)} ${gu}`;
   });
-  new Chart($("chart-density").getContext("2d"), {
+  mountChart("chart-density", {
     type: "bar",
     data: {
       labels,
@@ -526,7 +620,7 @@ function renderDensity(rows, codes) {
 function renderDcRatio(rows, codes) {
   const top = rows.slice(0, 12);
   const labels = top.map((r) => shortSido(codes.sido[r.zcode] || r.zcode));
-  new Chart($("chart-dc-ratio").getContext("2d"), {
+  mountChart("chart-dc-ratio", {
     type: "bar",
     data: {
       labels,
@@ -543,6 +637,16 @@ function renderDcRatio(rows, codes) {
       indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false,
+      // 막대 클릭 → 해당 시도로 전체 대시보드 필터 (같은 막대 재클릭 = 해제)
+      onClick: (evt, els) => {
+        if (!els.length) return;
+        const z = top[els[0].index].zcode;
+        applyFilter(_sido === z ? null : z);
+      },
+      onHover: (evt, els) => {
+        const st = evt.native && evt.native.target && evt.native.target.style;
+        if (st) st.cursor = els.length ? "pointer" : "default";
+      },
       scales: {
         x: { beginAtZero: true, ticks: { callback: (v) => v + "%" }, grid: { color: C.grid } },
         y: { grid: { display: false } },
@@ -556,6 +660,7 @@ function renderDcRatio(rows, codes) {
               return [
                 `총 충전기: ${fmtInt(r.total_chargers)}`,
                 `DC 충전기: ${fmtInt(r.dc_count)}`,
+                _sido === r.zcode ? "▸ 필터 해제하려면 클릭" : "▸ 클릭해 이 지역으로 필터",
               ];
             },
           },
@@ -577,7 +682,7 @@ function renderChgerType(rows, codes) {
   }
   const palette = [C.primary, C.info, C.purple, C.warn, C.rose, C.lime, C.textDim];
 
-  new Chart($("chart-types").getContext("2d"), {
+  mountChart("chart-types", {
     type: "doughnut",
     data: {
       labels,
@@ -608,7 +713,7 @@ function renderChgerType(rows, codes) {
 
 function renderOutput(rows) {
   const labels = rows.map((r) => OUTPUT_BUCKET_LABELS[r.bucket] || r.bucket);
-  new Chart($("chart-output").getContext("2d"), {
+  mountChart("chart-output", {
     type: "bar",
     data: {
       labels,
@@ -638,7 +743,7 @@ function renderOutput(rows) {
 }
 
 function renderYear(rows) {
-  new Chart($("chart-year").getContext("2d"), {
+  mountChart("chart-year", {
     type: "line",
     data: {
       labels: rows.map((r) => r.year),
@@ -669,7 +774,7 @@ function renderYear(rows) {
 function renderKind(rows, codes) {
   const top = rows.slice(0, 8);
   const labels = top.map((r) => codes.kind[r.kind] || r.kind);
-  new Chart($("chart-kind").getContext("2d"), {
+  mountChart("chart-kind", {
     type: "bar",
     data: {
       labels,
@@ -709,43 +814,25 @@ async function main() {
       );
     }
     const db = await initDuckDB();
-    const conn = await db.connect();
+    _conn = await db.connect();
 
     setStatus("통계 계산 중…");
-    const [
-      codes,
-      [kpi],
-      operators,
-      density,
-      sidoDc,
-      chgerType,
-      output,
-      year,
-      kind,
-    ] = await Promise.all([
+    // 전국 시도(셀렉터 + 인사이트)와 코드 테이블만 먼저 로드
+    const [codes, sidoDc] = await Promise.all([
       loadCodes(),
-      runQuery(conn, Q_KPI),
-      runQuery(conn, Q_OPERATORS),
-      runQuery(conn, Q_DENSITY),
-      runQuery(conn, Q_SIDO_DC),
-      runQuery(conn, Q_CHGER_TYPE),
-      runQuery(conn, Q_OUTPUT),
-      runQuery(conn, Q_YEAR),
-      runQuery(conn, Q_KIND),
+      runQuery(_conn, Q_SIDO_DC),
     ]);
+    _codes = codes;
+    _national = { sidoDc };
 
-    renderKpi(kpi);
-    renderInsights({ kpi, chgerType, year, sidoDc, codes });
-    renderOperators(operators, codes);
-    renderDensity(density, codes);
+    // 시도 셀렉터 차트 — 전국, 클릭 가능 (한 번만 렌더)
     renderDcRatio(sidoDc, codes);
-    renderChgerType(chgerType, codes);
-    renderOutput(output);
-    renderYear(year);
-    renderKind(kind, codes);
-
     revealAll();
-    await conn.close();
+
+    // URL 의 ?sido 복원 → KPI + 나머지 차트 + 인사이트 렌더 (필터 제어는 여기서)
+    await applyFilter(new URL(location.href).searchParams.get("sido"));
+
+    // conn 은 필터 재쿼리를 위해 열어둔다 (닫지 않음).
   } catch (e) {
     showError(e);
   }

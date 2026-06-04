@@ -1330,3 +1330,39 @@ footer {
 @media (pointer: coarse) {
   .theme-toggle { width: 44px; height: 44px; }
 }
+
+/* 지역 크로스필터 칩 (메인 대시보드) */
+.region-filter {
+  margin: 4px 0 16px;
+}
+.region-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 14px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--r-pill);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+.region-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.region-chip-x:hover {
+  background: var(--bg-card);
+  color: var(--danger);
+}
