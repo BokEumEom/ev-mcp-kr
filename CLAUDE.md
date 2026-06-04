@@ -104,6 +104,7 @@ logs/              # 런타임 로그 (gitignore됨)
 | 타입체크 | `python -m mypy src/` |
 | 코드 테이블 재생성 | `python scripts/extract_sigungu.py` |
 | 로컬 서버 (Phase 3 이후) | `ev-mcp` |
+| web 데이터 새로고침 (sync→publish) | `scripts/refresh_web.sh` (이미 sync 했으면 `--publish-only`) |
 
 ## AI 보조 도구에게
 
