@@ -49,8 +49,11 @@ else
   echo "▶ [1/2] sync 건너뜀 (--publish-only)"
 fi
 
-echo "▶ [2/2] publish — data/snapshots/ → scratch/ (web 메인·고속도로가 읽는 파일)"
+echo "▶ [2/3] publish 메인 — data/snapshots/ → scratch/ (메인·고속도로가 읽는 파일)"
 python scripts/publish_web_snapshot.py
+
+echo "▶ [3/3] publish 시계열 — 실제 관측 2개 이상이면 trends 도 갱신"
+python scripts/publish_web_timeseries.py || echo "  (시계열 스킵: 실제 관측 2개 미만 — 더 쌓이면 자동 반영)"
 
 echo "✔ 완료. 로컬은 새로고침하면 반영됩니다."
 echo "  라이브 사이트는 scratch/chargers_snapshot.parquet 를 배포(push/업로드)해야 보입니다."
